@@ -1,0 +1,1423 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Updraft — Utah Paragliding</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%232563eb'/%3E%3Cpath d='M5 15 Q16 4 27 15' fill='none' stroke='%23fff' stroke-width='3' stroke-linecap='round'/%3E%3Cpath d='M6.5 15.4 L16 24 M25.5 15.4 L16 24' stroke='%23bae6fd' stroke-width='1.4' stroke-linecap='round'/%3E%3Ccircle cx='16' cy='25' r='2.2' fill='%237dd3fc'/%3E%3C/svg%3E"/>
+<!-- Try MapLibre for 3D, fall back to Leaflet -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.min.css"/>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
+<script src="https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+html,body{height:100%;font-family:system-ui,-apple-system,sans-serif;overflow:hidden;}
+#wrap{display:flex;flex-direction:column;height:100vh;}
+#topbar{background:linear-gradient(120deg,#0b3a82,#2563eb 55%,#0ea5e9);padding:8px 14px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;z-index:10;}
+#topbar h1{font-size:16px;font-weight:800;color:white;margin:0;display:flex;align-items:center;gap:8px;letter-spacing:.3px;}
+#brand-logo{flex-shrink:0;display:block;filter:drop-shadow(0 1px 2px rgba(0,0,0,.35));}
+.sub{font-size:10px;color:rgba(255,255,255,.88);margin-top:1px;}
+#refresh-btn{background:white;border:none;border-radius:16px;padding:5px 12px;font-size:12px;font-weight:700;color:#2563eb;cursor:pointer;flex-shrink:0;}
+/* ── NOW bar (current conditions) ─────────────────────────────────────────── */
+.nb-load{color:rgba(255,255,255,.45);font-size:12px;padding:11px 16px;}
+#now-bar{display:flex;align-items:stretch;background:#0f172a;flex-shrink:0;overflow-x:auto;z-index:10;border-bottom:1px solid rgba(255,255,255,.06);scrollbar-width:none;}
+#now-bar::-webkit-scrollbar{display:none;}
+.nb-status{flex-shrink:0;display:flex;flex-direction:column;justify-content:center;padding:7px 14px;min-width:118px;gap:2px;}
+.nb-pill{display:inline-block;font-size:13px;font-weight:800;padding:3px 11px;border-radius:11px;align-self:flex-start;}
+.nb-pill.flyable{background:rgba(34,197,94,.18);color:#4ade80;}
+.nb-pill.caution{background:rgba(250,204,21,.18);color:#facc15;}
+.nb-pill.no{background:rgba(239,68,68,.18);color:#f87171;}
+.nb-loc{font-size:10px;color:rgba(255,255,255,.5);letter-spacing:.3px;}
+.nb-metrics{display:flex;flex:1;align-items:center;}
+.nb-m{flex:1;min-width:64px;text-align:center;padding:6px 8px;border-left:1px solid rgba(255,255,255,.06);}
+.nb-ml{font-size:9px;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.5px;}
+.nb-mv{font-size:15px;font-weight:700;color:#fff;margin-top:2px;display:flex;align-items:center;justify-content:center;gap:4px;}
+.nb-ms{font-size:9px;color:rgba(255,255,255,.4);margin-top:1px;}
+.nb-dir-arrow{display:inline-block;color:#38bdf8;font-size:13px;}
+/* ── Windy-style row/column FORECAST table ───────────────────────────────── */
+#forecast{flex-shrink:0;background:#fff;border-bottom:1px solid #d8dee9;overflow-x:auto;overflow-y:hidden;z-index:10;-webkit-overflow-scrolling:touch;--fcw:46px;--fcl:62px;}
+#forecast::-webkit-scrollbar{height:8px;}
+#forecast::-webkit-scrollbar-thumb{background:rgba(0,0,0,.22);border-radius:4px;}
+#fc-track{display:flex;flex-direction:column;width:max-content;font-family:system-ui,sans-serif;}
+.fc-row{display:flex;align-items:stretch;}
+.fc-cell{width:var(--fcw);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:11px;border-right:1px solid #eef1f5;}
+.fc-cell.now{background:rgba(37,99,235,.08);box-shadow:inset 2px 0 0 #2563eb,inset -2px 0 0 #2563eb;}
+.fc-cell.mswitch{border-left:2px dashed #93c5fd;}
+.fc-lbl{width:var(--fcl);flex-shrink:0;position:sticky;left:0;z-index:3;background:#f8fafc;border-right:1px solid #d8dee9;display:flex;align-items:center;padding:0 7px;font-size:9px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.3px;}
+/* day header row */
+.fc-r-day{height:22px;background:#eef2f7;}
+.fc-r-day .fc-lbl{background:#eef2f7;}
+.fc-day{flex-shrink:0;display:flex;align-items:center;justify-content:flex-start;padding-left:8px;font-size:12px;font-weight:800;color:#1e293b;border-right:1px solid #d8dee9;background:#eef2f7;}
+.fc-day.alt{background:#e2e8f0;}
+/* hours */
+.fc-r-hr{height:18px;}.fc-r-hr .fc-cell{font-size:10px;font-weight:600;color:#64748b;}
+.fc-r-hr .fc-cell.now{color:#2563eb;font-weight:800;}
+/* sky icons */
+.fc-r-sky{height:24px;}.fc-r-sky .fc-cell{font-size:14px;}
+/* temperature */
+.fc-r-temp{height:22px;}.fc-r-temp .fc-cell{font-size:12px;font-weight:800;}
+/* rain */
+.fc-r-rain{height:16px;}.fc-r-rain .fc-cell{font-size:9px;font-weight:700;color:#0284c7;}
+/* wind + gusts (coloured cells) */
+.fc-r-wind .fc-cell,.fc-r-gust .fc-cell{font-size:11px;font-weight:700;color:#0f172a;border-right:1px solid rgba(255,255,255,.5);}
+.fc-r-wind{height:20px;}.fc-r-gust{height:20px;}
+.fc-r-gust .fc-cell{font-weight:600;color:#334155;}
+/* wind direction arrows */
+.fc-r-dir{height:22px;}
+/* flyability bar */
+.fc-r-fly{height:5px;}.fc-r-fly .fc-cell{padding:0;border-right:1px solid rgba(255,255,255,.4);}
+.fc-r-fly .fc-lbl{background:#f8fafc;}
+#map-wrap{position:relative;flex:1;min-height:0;}
+#map{width:100%;height:100%;}
+#mode-badge{position:absolute;top:10px;left:50%;transform:translateX(-50%);z-index:500;background:rgba(17,24,39,.85);color:rgba(255,255,255,.7);font-size:10px;padding:3px 10px;border-radius:12px;}
+#ctrl-panel{position:absolute;top:196px;left:8px;z-index:500;display:flex;flex-direction:column;gap:5px;}
+.cbtn{background:rgba(17,24,39,.88);border:1px solid rgba(255,255,255,.2);border-radius:9px;padding:6px 11px;color:white;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;}
+.cbtn.active{background:rgba(56,189,248,.28);border-color:#38bdf8;color:#7dd3fc;}
+#trow{display:flex;gap:4px;}
+#wind-vane{position:absolute;top:8px;left:8px;z-index:500;background:rgba(17,24,39,.92);border-radius:12px;padding:9px 11px;color:white;min-width:116px;text-align:center;box-shadow:0 2px 10px rgba(0,0,0,.4);border-top:3px solid #38bdf8;}
+.wvt{font-size:9px;color:rgba(255,255,255,.5);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;}
+.wvs{font-size:18px;font-weight:700;color:#38bdf8;}
+#legend{position:absolute;bottom:10px;left:10px;z-index:500;background:rgba(255,255,255,.94);border-radius:8px;padding:7px 10px;font-size:11px;box-shadow:0 2px 8px rgba(0,0,0,.2);line-height:1.7;}
+.lr{display:flex;align-items:center;gap:6px;}
+.lc{width:11px;height:11px;border-radius:50%;flex-shrink:0;}
+.ls{width:15px;height:9px;border-radius:2px;flex-shrink:0;}
+#terrain-bar{position:absolute;bottom:0;left:0;right:0;background:rgba(17,24,39,.93);color:white;font-size:11px;padding:6px 14px;z-index:600;display:none;align-items:center;gap:10px;}
+#tprog{flex:1;height:4px;background:rgba(255,255,255,.2);border-radius:2px;overflow:hidden;}
+#tfill{height:100%;background:#38bdf8;width:0%;transition:width .15s;}
+/* Popup */
+.pp{min-width:232px;max-width:268px;font-family:system-ui,sans-serif;}
+.pp-sat{width:100%;height:148px;object-fit:cover;border-radius:8px;margin-bottom:8px;display:block;background:#dde8dd;}
+.ppn{font-size:18px;font-weight:800;color:#111;margin-bottom:2px;line-height:1.2;}
+.pps{font-size:11px;color:#888;margin-bottom:6px;}
+.ppb{display:inline-block;font-size:11px;font-weight:600;padding:2px 8px;border-radius:9px;margin-bottom:7px;}
+.ppg{display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-bottom:7px;}
+.ppc{background:#f5f5f0;border-radius:5px;padding:4px 7px;}
+.ppcl{font-size:9px;color:#bbb;text-transform:uppercase;}
+.ppcv{font-size:13px;font-weight:700;color:#222;}
+.ppgl{background:#e8f5e8;border:1px solid #c8e6c8;border-radius:7px;padding:8px 10px;margin-top:5px;font-size:11px;color:#1b5e20;}
+.ppgl strong{font-size:13px;display:block;margin-bottom:3px;}
+.ppgl-loading{background:#f0f9f0;border:1px dashed #a5d6a7;border-radius:7px;padding:7px 9px;margin-top:5px;font-size:11px;color:#2e7d32;display:flex;align-items:center;gap:6px;}
+.gsr{display:flex;align-items:center;gap:7px;margin:5px 0 2px;}
+.gsr label{font-size:10px;color:#555;white-space:nowrap;}
+.gsr input{flex:1;}
+.gsr span{font-size:12px;font-weight:700;color:#1b5e20;min-width:28px;}
+.gsug{font-size:10px;color:#2e7d32;background:#f0fdf0;border-radius:5px;padding:3px 7px;margin-top:3px;}
+.pplz{background:#eff6ff;border:1px solid #bfdbfe;border-radius:7px;padding:7px 9px;margin-top:5px;font-size:11px;color:#1e40af;}
+.ppreach{background:#fefce8;border:1px solid #fde047;border-radius:7px;padding:5px 9px;font-size:11px;color:#713f12;margin-bottom:6px;font-weight:600;}
+.ppnote{font-size:10px;color:#aaa;margin-top:5px;line-height:1.4;}
+.ppbio{font-size:13.5px;color:#334155;margin-top:9px;line-height:1.5;}
+.spin{display:inline-block;animation:spin .8s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg)}}
+.maplibregl-popup-content{padding:12px;border-radius:10px;max-height:80vh;overflow-y:auto;}
+/* ── polish ─────────────────────────────────────────────────────────────────── */
+#wx-strip::-webkit-scrollbar,#hourly::-webkit-scrollbar{display:none;}
+#wx-strip,#hourly{scrollbar-width:none;-webkit-overflow-scrolling:touch;}
+#topbar{box-shadow:0 2px 10px rgba(0,0,0,.2);}
+#refresh-btn{transition:transform .12s,box-shadow .12s;box-shadow:0 1px 3px rgba(0,0,0,.22);}
+#refresh-btn:hover{transform:translateY(-1px);box-shadow:0 4px 10px rgba(0,0,0,.3);}
+#refresh-btn:active{transform:translateY(0);box-shadow:0 1px 3px rgba(0,0,0,.22);}
+.cbtn{transition:background .15s,border-color .15s,color .15s,transform .1s;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);box-shadow:0 1px 4px rgba(0,0,0,.25);}
+.cbtn:hover{background:rgba(31,41,55,.96);border-color:rgba(255,255,255,.4);}
+.cbtn:active{transform:scale(.95);}
+.cbtn.active:hover{background:rgba(56,189,248,.42);}
+#mode-badge{backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);max-width:min(58vw,300px);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transition:opacity .6s;}
+#wind-vane,#legend,#terrain-bar{backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);}
+#wind-vane{transition:border-top-color .3s;}
+#varrow{transition:transform .5s ease-out;}
+@media(max-width:520px){
+  #mode-badge{display:none;}
+  #wind-vane{min-width:84px;padding:7px 9px;}
+  #wind-vane svg{width:54px;height:54px;}
+  .wvs{font-size:15px;}
+  #legend{font-size:10px;padding:6px 8px;}
+}
+/* layer panel */
+#layer-panel{position:absolute;top:352px;left:150px;z-index:600;background:rgba(17,24,39,.92);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.18);border-radius:10px;padding:9px 11px;color:#fff;font-size:12px;display:none;min-width:146px;box-shadow:0 4px 16px rgba(0,0,0,.45);}
+#layer-panel.open{display:block;}
+.lp-sec{font-size:9px;text-transform:uppercase;letter-spacing:.5px;color:rgba(255,255,255,.45);margin:8px 0 3px;}
+.lp-sec:first-child{margin-top:0;}
+.lp-row{display:flex;align-items:center;gap:7px;padding:3px 0;cursor:pointer;user-select:none;}
+.lp-row input{cursor:pointer;margin:0;accent-color:#38bdf8;}
+.lp-div{height:1px;background:rgba(255,255,255,.12);margin:7px 0 3px;}
+/* 3D popup thumbnail */
+.pp-sat{position:relative;overflow:hidden;}
+.pp-sat .maplibregl-canvas{border-radius:8px;}
+.pp-sat-tag{position:absolute;left:6px;bottom:5px;z-index:2;font-size:9px;color:#fff;background:rgba(0,0,0,.42);padding:1px 6px;border-radius:7px;pointer-events:none;}
+/* topbar model selector */
+#topbar-actions{display:flex;align-items:center;gap:7px;flex-shrink:0;}
+#model-select{background:white;border:none;border-radius:14px;padding:5px 8px;font-size:12px;font-weight:700;color:#2563eb;cursor:pointer;box-shadow:0 1px 3px rgba(0,0,0,.22);}
+/* detail sidebar */
+#sidebar{position:absolute;top:0;right:0;width:316px;max-width:86%;height:100%;z-index:700;background:rgba(255,255,255,.98);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);box-shadow:-5px 0 24px rgba(0,0,0,.3);transform:translateX(100%);transition:transform .28s ease;overflow-y:auto;}
+#sidebar.open{transform:translateX(0);}
+#sb-close{position:absolute;top:9px;right:11px;z-index:3;border:none;background:rgba(0,0,0,.4);color:#fff;width:27px;height:27px;border-radius:50%;font-size:15px;cursor:pointer;line-height:1;}
+#sb-close:hover{background:rgba(0,0,0,.6);}
+#sb-body{padding:13px;}
+#sidebar .pp{min-width:0;max-width:none;}
+#sidebar .pp-sat{height:186px;}
+.flybtn{display:flex;align-items:center;justify-content:center;gap:6px;width:100%;margin-top:9px;background:linear-gradient(90deg,#2563eb,#3b82f6);color:#fff;border:none;border-radius:8px;padding:10px;font-size:13px;font-weight:700;cursor:pointer;box-shadow:0 2px 7px rgba(37,99,235,.4);}
+.flybtn:hover{filter:brightness(1.09);}
+.flybtn:disabled{opacity:.55;cursor:default;filter:none;}
+/* cursor-wind hint */
+.wv-probe{font-size:9px;color:#fbbf24;margin-top:3px;letter-spacing:.3px;}
+/* bottom-left control stack (Menu logo + My-location blue pin) */
+#br-controls{position:absolute;bottom:12px;left:12px;z-index:601;display:flex;flex-direction:row;gap:6px;align-items:flex-end;}
+/* icon-only buttons (square, centred graphic) */
+.icon-btn{padding:7px;display:flex;align-items:center;justify-content:center;line-height:0;}
+#geo-btn{background:rgba(255,255,255,.92);border-color:rgba(0,0,0,.12);}
+#geo-btn:hover{background:#fff;}
+/* compass indicator (left side, below control buttons) */
+#compass{position:absolute;top:300px;left:8px;z-index:500;width:46px;height:46px;border-radius:50%;background:rgba(17,24,39,.9);box-shadow:0 2px 10px rgba(0,0,0,.4);cursor:pointer;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);}
+#compass svg{display:block;}
+#compass .cn{transition:transform .15s linear;transform-box:view-box;transform-origin:23px 23px;}
+/* directions button in sidebar */
+.dirbtn{display:flex;align-items:center;justify-content:center;gap:6px;width:100%;margin-top:8px;background:#fff;border:1.5px solid #2563eb;color:#1d4ed8;border-radius:8px;padding:9px;font-size:13px;font-weight:700;cursor:pointer;text-decoration:none;}
+.dirbtn:hover{background:#eff6ff;}
+/* Menu panel (map key + LZ tools) */
+#menu-panel{position:absolute;bottom:60px;left:12px;z-index:600;background:rgba(255,255,255,.96);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border-radius:10px;padding:9px 11px;font-size:11px;box-shadow:0 2px 12px rgba(0,0,0,.28);line-height:1.7;display:none;min-width:158px;max-width:230px;}
+#menu-panel.open{display:block;}
+#menu-panel .lp-sec{font-size:9px;text-transform:uppercase;letter-spacing:.5px;color:#9aa3af;margin:8px 0 3px;font-weight:700;}
+#menu-panel .lp-sec:first-child{margin-top:0;}
+#menu-panel .lp-div{height:1px;background:rgba(0,0,0,.1);margin:8px 0 4px;}
+#menu-panel .edbtn{width:100%;margin-top:5px;}
+.lp-h2{font-size:10px;color:#777;line-height:1.4;margin-top:7px;}
+/* Editor buttons / inputs (light popup + menu contexts) */
+.edbtn{background:#eff6ff;border:1px solid #2563eb;color:#1d4ed8;border-radius:8px;padding:7px 9px;font-size:12px;font-weight:700;cursor:pointer;text-align:center;transition:background .15s;}
+.edbtn:hover{background:#dbeafe;}
+.edbtn.active{background:#2563eb;border-color:#1d4ed8;color:#fff;}
+.edbtn.danger{background:#fef2f2;border-color:#ef4444;color:#b91c1c;}
+.edbtn.danger:hover{background:#fee2e2;}
+.edbtn.save{background:#dcfce7;border-color:#16a34a;color:#15803d;margin-top:7px;}
+.edbtn.save:hover{background:#bbf7d0;}
+.edbtn.saved-ok{background:#16a34a;border-color:#15803d;color:#fff;}
+.edrow{display:flex;gap:6px;margin-top:5px;}.edrow .edbtn{flex:1;margin-top:0;}
+.edl{display:block;font-size:10px;text-transform:uppercase;letter-spacing:.4px;color:#888;margin:9px 0 3px;}
+.edi{width:100%;border:1px solid #ccc;border-radius:7px;padding:7px 8px;font-size:13px;font-family:inherit;}
+/* In-popup LZ editor section */
+.lzedit{margin-top:10px;padding-top:9px;border-top:1px dashed #d6d6cf;}
+.lzedit-t{font-size:13px;font-weight:800;color:#1d4ed8;margin-bottom:2px;}
+.lzedit .edbtn{width:100%;}.lzedit .edrow .edbtn{width:auto;}
+/* LZ editor as a collapsible dropdown box */
+.lzedit{background:#f8fafc;border:1px solid #dbeafe;border-radius:9px;padding:0;overflow:hidden;}
+.lzedit>summary{cursor:pointer;list-style:none;outline:none;display:flex;align-items:center;justify-content:space-between;padding:9px 11px;user-select:none;background:#eff6ff;}
+.lzedit>summary::-webkit-details-marker{display:none;}
+.lzedit>summary::after{content:"▾";color:#1d4ed8;font-size:12px;transition:transform .2s;}
+.lzedit[open]>summary::after{transform:rotate(180deg);}
+.lzedit-body{padding:4px 11px 11px;}
+.lzedit select[multiple]{height:auto;padding:4px;}
+/* Best-glide switch in launch popup */
+.pptgl{display:flex;align-items:center;justify-content:space-between;gap:7px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:8px 11px;margin:2px 0 6px;font-size:12px;font-weight:700;color:#1d4ed8;cursor:pointer;user-select:none;}
+.switch{position:relative;display:inline-block;width:38px;height:21px;flex-shrink:0;}
+.switch input{opacity:0;width:0;height:0;position:absolute;}
+.switch .slider{position:absolute;inset:0;background:#cbd5e1;border-radius:21px;transition:background .2s;}
+.switch .slider:before{content:"";position:absolute;height:15px;width:15px;left:3px;top:3px;background:#fff;border-radius:50%;transition:transform .2s;box-shadow:0 1px 3px rgba(0,0,0,.3);}
+.switch input:checked+.slider{background:#2563eb;}
+.switch input:checked+.slider:before{transform:translateX(17px);}
+/* Leaflet blue-dot */
+.bluedot-pulse{border-radius:50%;background:rgba(26,115,232,.25);}
+/* native geolocate button hidden — driven by #geo-btn instead */
+.maplibregl-ctrl-geolocate{display:none!important;}
+/* brand logo as a cut-out overlay, bottom-centre of the map */
+#logo-overlay{position:absolute;bottom:12px;left:50%;transform:translateX(-50%);z-index:500;display:flex;align-items:center;gap:7px;pointer-events:none;padding:5px 13px 5px 9px;border-radius:18px;background:rgba(15,23,42,.42);backdrop-filter:blur(7px);-webkit-backdrop-filter:blur(7px);box-shadow:0 2px 10px rgba(0,0,0,.3);}
+#logo-overlay svg{display:block;filter:drop-shadow(0 1px 2px rgba(0,0,0,.5));}
+#logo-overlay span{font-size:15px;font-weight:800;color:#fff;letter-spacing:.4px;text-shadow:0 1px 3px rgba(0,0,0,.5);}
+/* weather-model selector that lives inside the now-bar */
+.nb-model{background:rgba(255,255,255,.12);color:#fff;border:1px solid rgba(255,255,255,.25);border-radius:9px;padding:3px 6px;font-size:11px;font-weight:700;cursor:pointer;align-self:flex-start;}
+.nb-model option{color:#111;}
+textarea.edi{resize:vertical;line-height:1.4;min-height:54px;}
+/* ── Dark mode ─────────────────────────────────────────────────────────────── */
+body.dark #forecast{background:#0f172a;border-color:#1e293b;}
+body.dark .fc-cell{border-color:#1e293b;}
+body.dark .fc-lbl{background:#111827;color:#94a3b8;border-color:#1e293b;}
+body.dark .fc-r-day,body.dark .fc-r-day .fc-lbl,body.dark .fc-day{background:#1e293b;color:#e2e8f0;border-color:#334155;}
+body.dark .fc-day.alt{background:#162032;}
+body.dark .fc-r-hr .fc-cell{color:#94a3b8;}
+body.dark .fc-r-temp .fc-cell{filter:brightness(1.35);}
+body.dark .fc-r-rain .fc-cell{color:#38bdf8;}
+body.dark .fc-r-fly .fc-lbl{background:#111827;}
+body.dark #sidebar{background:rgba(15,23,42,.98);}
+body.dark #sb-body,body.dark .ppn{color:#f1f5f9;}
+body.dark .pps,body.dark .ppnote,body.dark .ppbio{color:#94a3b8;}
+body.dark .ppc{background:#1e293b;}
+body.dark .ppcv{color:#e2e8f0;}body.dark .ppcl{color:#64748b;}
+body.dark #menu-panel{background:rgba(15,23,42,.97);color:#e2e8f0;}
+body.dark #menu-panel .lr,body.dark #menu-panel .lp-h2{color:#cbd5e1;}
+body.dark .edi{background:#1e293b;color:#e2e8f0;border-color:#334155;}
+body.dark .lzedit{background:#111827;border-color:#334155;}
+body.dark .lzedit>summary{background:#1e293b;color:#93c5fd;}
+body.dark .pplz{background:#172033;border-color:#1e3a5f;color:#bfdbfe;}
+body.dark .ppgl,body.dark .ppgl-loading{background:#14241a;border-color:#1f3a28;color:#bbf7d0;}
+body.dark .ppreach{background:#2a2410;border-color:#5a4a14;color:#fde68a;}
+</style>
+</head>
+<body>
+<div id="wrap">
+  <div id="now-bar"><div class="nb-load">Loading current conditions…</div></div>
+  <div id="forecast"><div id="fc-track"><div class="nb-load">Loading forecast…</div></div></div>
+  <div id="map-wrap">
+    <div id="map"></div>
+    <div id="logo-overlay" aria-hidden="true"><svg width="30" height="30" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg"><path d="M3 14 Q16 1.5 29 14" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round"/><path d="M9.5 10 L11.5 15.5 M16 7.2 L16 16 M22.5 10 L20.5 15.5" stroke="rgba(255,255,255,.6)" stroke-width="1.3" stroke-linecap="round"/><path d="M4.6 14.5 L15 24.5 M27.4 14.5 L17 24.5" stroke="#bae6fd" stroke-width="1.3" stroke-linecap="round"/><circle cx="16" cy="26" r="2.4" fill="#7dd3fc"/></svg><span>Updraft</span></div>
+    <div id="mode-badge">Loading map...</div>
+    <div id="ctrl-panel">
+      <div id="trow">
+        <button class="cbtn" id="b2d" onclick="togglePitch()">2D</button>
+        <button class="cbtn icon-btn" id="layers-btn" onclick="toggleLayerPanel()" title="Layers" aria-label="Map layers">🗺</button>
+      </div>
+    </div>
+    <div id="br-controls">
+      <button class="cbtn icon-btn" id="menu-btn" onclick="toggleMenu()" title="Menu" aria-label="Menu"><svg width="20" height="20" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><g stroke="#fff" stroke-width="2.4" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></g></svg></button>
+      <button class="cbtn icon-btn" id="geo-btn" onclick="goToMyLocation(false,true)" title="My location" aria-label="My location"><svg width="20" height="26" viewBox="0 0 30 40" xmlns="http://www.w3.org/2000/svg"><path d="M15 1C8 1 3 6 3 13c0 9 12 25 12 25S27 22 27 13C27 6 22 1 15 1z" fill="#2563eb" stroke="#fff" stroke-width="2.5"/><circle cx="15" cy="13" r="4.5" fill="#fff"/></svg></button>
+    </div>
+    <div id="compass" onclick="resetNorth()" title="Reset to north">
+      <svg width="46" height="46" viewBox="0 0 46 46">
+        <g class="cn" id="compass-needle">
+          <polygon points="23,8 18.5,23 27.5,23" fill="#ef4444"/>
+          <polygon points="23,38 18.5,23 27.5,23" fill="#9ca3af"/>
+          <text x="23" y="6.5" text-anchor="middle" font-size="7" font-weight="700" fill="#fff" font-family="sans-serif">N</text>
+        </g>
+      </svg>
+    </div>
+    <div id="layer-panel">
+      <div class="lp-sec">Base map</div>
+      <label class="lp-row"><input type="radio" name="baselayer" value="streets" checked onchange="setBaseLayer('streets')"/> Streets</label>
+      <label class="lp-row"><input type="radio" name="baselayer" value="sat" onchange="setBaseLayer('sat')"/> Satellite</label>
+      <label class="lp-row"><input type="radio" name="baselayer" value="topo" onchange="setBaseLayer('topo')"/> Topo (USGS)</label>
+      <div class="lp-div"></div>
+      <div class="lp-sec">Aviation overlay</div>
+      <label class="lp-row"><input type="checkbox" id="ov-sectional" onchange="toggleOverlay('sectional',this.checked)"/> ✈ VFR Sectional</label>
+    </div>
+    <div id="wind-vane">
+      <div class="wvt" id="wvt">SLC Wind</div>
+      <svg width="68" height="68" viewBox="0 0 68 68" style="display:block;margin:0 auto 4px;">
+        <circle cx="34" cy="34" r="31" fill="rgba(255,255,255,.05)" stroke="rgba(255,255,255,.12)" stroke-width="1"/>
+        <text x="34" y="10" text-anchor="middle" font-size="8" fill="rgba(255,255,255,.45)" font-family="sans-serif">N</text>
+        <text x="34" y="63" text-anchor="middle" font-size="8" fill="rgba(255,255,255,.45)" font-family="sans-serif">S</text>
+        <text x="7" y="38" text-anchor="middle" font-size="8" fill="rgba(255,255,255,.45)" font-family="sans-serif">W</text>
+        <text x="61" y="38" text-anchor="middle" font-size="8" fill="rgba(255,255,255,.45)" font-family="sans-serif">E</text>
+        <g id="varrow" transform="rotate(0,34,34)">
+          <polygon points="34,8 30,24 34,20 38,24" fill="#38bdf8"/>
+          <circle cx="34" cy="34" r="3" fill="#38bdf8"/>
+          <line x1="34" y1="24" x2="34" y2="54" stroke="#38bdf8" stroke-width="2.5" stroke-linecap="round"/>
+        </g>
+      </svg>
+      <div class="wvs" id="vspeed">— mph</div>
+      <div id="vdir" style="font-size:11px;color:rgba(255,255,255,.65);">loading...</div>
+      <div id="vgust" style="font-size:10px;color:rgba(255,255,255,.4);margin-top:1px;">Gust —</div>
+      <div class="wv-probe" id="wvprobe">↖ hover map for wind</div>
+    </div>
+    <div id="menu-panel">
+      <div class="lp-sec">Display</div>
+      <button class="edbtn" id="dark-btn" onclick="toggleDark()">🌙 Dark mode</button>
+      <button class="edbtn active" id="exbtn" onclick="toggleExag()">⛰ Exaggeration 1.5×</button>
+      <div class="lp-div"></div>
+      <div class="lp-sec">Map key</div>
+      <div class="lr"><div class="lc" style="background:#22c55e;"></div>Flyable launch</div>
+      <div class="lr"><div class="lc" style="background:#facc15;"></div>Caution</div>
+      <div class="lr"><div class="lc" style="background:#ef4444;"></div>No fly</div>
+      <div class="lr"><div class="ls" style="background:#3b82f6;"></div>Landing zone</div>
+      <div class="lr"><div class="ls" style="background:#d97706;border:2px solid #fde047;"></div>Reachable LZ</div>
+      <div class="lr"><div class="ls" style="background:rgba(34,197,94,.25);border:1.5px dashed #16a34a;"></div>LZ field boundary</div>
+      <div class="lp-div"></div>
+      <div class="lp-sec">Add to map</div>
+      <button class="edbtn" onclick="startAddLaunch();toggleMenu();">＋ Add takeoff</button>
+      <button class="edbtn" onclick="startAddLZ();toggleMenu();">＋ Add LZ</button>
+      <div class="lp-h2">Click any pin to rename it, edit its bio, link LZs to takeoffs, draw boundaries, or move it.</div>
+    </div>
+    <button id="draw-undo" class="cbtn" style="display:none;position:absolute;bottom:48px;left:50%;transform:translateX(-50%);z-index:600;" onclick="undoDrawPoint()">↶ Undo point</button>
+    <div id="terrain-bar">
+      <span>⛰ Sampling terrain...</span>
+      <div id="tprog"><div id="tfill"></div></div>
+    </div>
+    <div id="sidebar">
+      <button id="sb-close" onclick="closeSidebar()">✕</button>
+      <div id="sb-body"></div>
+    </div>
+  </div>
+</div>
+<script>
+// ── DATA ─────────────────────────────────────────────────────────────────────
+const LAUNCHES=[
+  {id:'pom_s',name:'POM – South Side',sub:'Draper (Flight Park)',lat:40.4955,lon:-111.8883,alt:5100,lzAlt:4850,rating:'P2',facing:180,lzLat:40.4542,lzLon:-111.9006,desc:"World-class training hill. South wind mornings."},
+  {id:'pom_n',name:'POM – North Side',sub:'Draper (Flight Park)',lat:40.4989,lon:-111.8879,alt:4900,lzAlt:4800,rating:'P2',facing:350,lzLat:40.4775,lzLon:-111.8944,desc:"Evening NNW ridge soaring. 2-mile Steep Mountain."},
+  {id:'cherry',name:'Cherry Canyon',sub:'Draper, UT',lat:40.515992,lon:-111.817091,alt:7110,lzAlt:5000,rating:'P3',facing:270,lzLat:40.507,lzLon:-111.875,desc:"Hike-and-fly via Cherry Canyon Logging Trail."},
+  {id:'the_g',name:"The 'G'",sub:'Pleasant Grove, UT',lat:40.3711,lon:-111.702,alt:5840,lzAlt:4800,rating:'P2',facing:270,lzLat:40.365,lzLon:-111.735,desc:"Small grassy knoll below the giant white 'G'."},
+  {id:'buffalo_pk',name:'Buffalo Peak',sub:'Squaw Peak Rd, Provo',lat:40.28408,lon:-111.614253,alt:7874,lzAlt:4850,rating:'P3',facing:290,lzLat:40.275,lzLon:-111.646,desc:"Hike from Squaw Peak Rd. W/NW winds. LZ = Rock Canyon Park."},
+  {id:'rock_canyon',name:'Rock Canyon Launch',sub:'Provo, UT',lat:40.269563,lon:-111.623685,alt:6358,lzAlt:4900,rating:'P3',facing:270,lzLat:40.267,lzLon:-111.645,desc:"Speed-wing and paragliding. LZ at Rock Canyon Park."},
+  {id:'mahogany',name:'Mahogany Ridge',sub:'Wasatch foothills, SLC',lat:40.426005,lon:-111.719857,alt:8783,lzAlt:5200,rating:'P3',facing:270,lzLat:40.420,lzLon:-111.760,desc:"Hike-and-fly. Light west/SW flow."},
+  {id:'crawford',name:"Crawford's Ridge",sub:'Randolph, UT',lat:41.671389,lon:-111.096111,alt:7700,lzAlt:6450,rating:'P2',facing:270,lzLat:41.669444,lzLon:-111.115278,desc:"West-facing 10-mile ridge."},
+  {id:'francis',name:'Francis Peak',sub:'Farmington, UT',lat:41.027222,lon:-111.838056,alt:9200,lzAlt:4300,rating:'P2',facing:270,lzLat:41.007778,lzLon:-111.913056,desc:"West-facing meadow. ~5000ft vert. GSL views."},
+  {id:'the_v',name:'The V',sub:'Bountiful, UT',lat:40.911111,lon:-111.845556,alt:6341,lzAlt:4600,rating:'P2',facing:270,lzLat:40.910556,lzLon:-111.876389,desc:"West-facing. 1741ft vert."},
+  {id:'bigbeacon',name:'Big Beacon (Mt Wire)',sub:'Emigration Canyon, SLC',lat:40.770833,lon:-111.799444,alt:7047,lzAlt:5100,rating:'P2',facing:270,lzLat:40.7625,lzLon:-111.821389,desc:"Multi-directional hike-up. 1947ft vert."},
+  {id:'grandeur',name:'Grandeur Peak',sub:'Millcreek Canyon, SLC',lat:40.700278,lon:-111.783611,alt:5900,lzAlt:5100,rating:'P3',facing:270,lzLat:40.6927,lzLon:-111.8278,desc:"P3. 800ft vert. LZ = Eastwood Elementary."},
+  {id:'olympus',name:'Mt Olympus',sub:'Wasatch Blvd, SLC',lat:40.661111,lon:-111.798889,alt:5524,lzAlt:4900,rating:'P4',facing:270,lzLat:40.659,lzLon:-111.794,desc:"P4 only. Thermal. Cool guys fly Olympus → POM."},
+  {id:'midfinger',name:'Middle Finger Ridge',sub:'Herriman, UT',lat:40.486806,lon:-112.035,alt:5500,lzAlt:5231,rating:'P2',facing:270,lzLat:40.488333,lzLon:-112.034722,desc:"Alternate to POM in cross/strong winds."},
+  {id:'jupiter',name:'Jupiter Peak',sub:'Brighton Ski Resort',lat:40.6125,lon:-111.541667,alt:9920,lzAlt:9000,rating:'P3',facing:270,lzLat:40.5978,lzLon:-111.5831,desc:"Late morning thermal. Big air gnarly alpine."},
+  {id:'snowbird',name:'Hidden Peak / Snowbird',sub:'Little Cottonwood Canyon',lat:40.560556,lon:-111.645278,alt:10980,lzAlt:8280,rating:'P4',facing:270,lzLat:40.580833,lzLon:-111.653056,desc:"P4 by invite only. Tram access."},
+  {id:'inspo',name:'Inspo',sub:'Kyhv Mountain Overlook, Orem',lat:40.3011,lon:-111.626,alt:6608,lzAlt:4853,rating:'P3',facing:265,lzLat:40.2954,lzLon:-111.651,desc:"2009 Nationals. 97-mile XC record!"},
+  {id:'y_mtn',name:'The Y',sub:'BYU / Provo, UT',lat:40.2483,lon:-111.620,alt:6260,lzAlt:4616,rating:'P3',facing:270,lzLat:40.2461,lzLon:-111.640,desc:"P3. LZ = Kiwanis Park."},
+  {id:'west_mtn',name:'West Mountain',sub:'Payson, UT',lat:40.088889,lon:-111.826944,alt:6764,lzAlt:4550,rating:'P1',facing:90,lzLat:40.100278,lzLon:-111.796389,desc:"Great first mountain site. East-facing morning."},
+  {id:'lake_mtn',name:'Lake Mountain',sub:'Saratoga Springs, UT',lat:40.280306,lon:-111.935194,alt:7602,lzAlt:4900,rating:'P2',facing:90,lzLat:40.311389,lzLon:-111.909444,desc:"Morning thermal. 2700ft vert. Utah Lake views."},
+  {id:'nebo',name:'Mt Nebo',sub:'Nephi, UT',lat:39.821972,lon:-111.760556,alt:11870,lzAlt:4962,rating:'P3',facing:270,lzLat:39.816944,lzLon:-111.856667,desc:"Highest Wasatch. 6909ft vert. LZ = Mona City Park."},
+  {id:'horse_hv',name:'Horse Heaven',sub:'Levan, UT',lat:39.490611,lon:-111.83225,alt:8036,lzAlt:5060,rating:'P2',facing:180,lzLat:39.507222,lzLon:-111.871556,desc:"Good 2WD. SE and W launch options."},
+  {id:'cove',name:'Cove Launch',sub:'Monroe / Richfield, UT',lat:38.634167,lon:-112.060833,alt:8731,lzAlt:5360,rating:'P3',facing:270,lzLat:38.646139,lzLon:-112.108083,desc:"The Ultimate Mountain Flying Site! 3300ft above valley."},
+  {id:'monroe_pk',name:'Monroe Peak',sub:'Monroe, UT',lat:38.541389,lon:-112.073333,alt:11171,lzAlt:5447,rating:'P4',facing:225,lzLat:38.588889,lzLon:-112.133861,desc:"Utah #1 XC. 2026 FAI Pan-Am host."},
+  {id:'mt_edna',name:'Mt Edna',sub:'Marysvale, UT',lat:38.38575,lon:-112.336889,alt:11730,lzAlt:6100,rating:'P3',facing:225,lzLat:38.442167,lzLon:-112.246861,desc:"Highest drive-up in Utah."},
+  {id:'mollies',name:"Mollie's Nipple",sub:'Hurricane, UT',lat:37.127778,lon:-113.298056,alt:4510,lzAlt:3300,rating:'P2',facing:270,lzLat:37.123333,lzLon:-113.309167,desc:"30-mile west ridge. Good winter."},
+  {id:'brianhead',name:'Brian Head Peak',sub:'Brian Head, UT',lat:37.681111,lon:-112.830,alt:11307,lzAlt:10500,rating:'P3',facing:180,lzLat:37.671389,lzLon:-112.832222,desc:"Smooth south wind. Beautiful alpine."},
+  {id:'wm_stg',name:'West Mtn (St George)',sub:'St George, UT',lat:37.155556,lon:-113.883333,alt:7685,lzAlt:4514,rating:'P3',facing:225,lzLat:37.170278,lzLon:-113.930556,desc:"SW-facing thermal. 3000ft+ vert."},
+  {id:'ibepah',name:'Mt Ibepah',sub:'Callao, UT',lat:39.8275,lon:-113.919889,alt:11960,lzAlt:4470,rating:'P4',facing:270,lzLat:39.885833,lzLon:-113.737222,desc:"Utah's biggest vert ~7490ft. Completely remote."},
+];
+const LZS=LAUNCHES.map(s=>({id:'lz_'+s.id,name:s.name+' LZ',sub:s.sub,lat:s.lzLat,lon:s.lzLon,alt:s.lzAlt,desc:s.desc}));
+const EXTRA_LZS=[
+  {id:'lz_kiwanis',name:'Kiwanis Park LZ',sub:'Provo, UT',lat:40.247,lon:-111.6398,alt:4900,desc:"Official Y Mountain LZ."},
+  {id:'lz_monroe_rodeo',name:'Monroe City Rodeo LZ',sub:'Monroe, UT',lat:38.628,lon:-112.115,alt:5447,desc:"Official Monroe Peak & Cove LZ."},
+  {id:'lz_rock_canyon',name:'Rock Canyon Park LZ',sub:'Provo, UT',lat:40.264,lon:-111.641,alt:4900,desc:"LZ for Buffalo Peak and Rock Canyon."},
+  {id:'lz_inspo_hs',name:'High School LZ',sub:'Orem (Inspo)',lat:40.2933,lon:-111.6825,alt:4797,desc:"Inspo landing — land only OUTSIDE school hours!"},
+];
+const ALL_LZS=[...LZS,...EXTRA_LZS];
+
+const BASE_RATIO=8, SECTOR=60;
+let wxCache={}, siteWx={}, activeLzHL=[], slcWx=null;
+let useMapLibre=false, mlMap=null, lfMap=null, openPopup=null, lzElMap={};
+let terrainCache={}, currentLaunchId=null, miniMap=null;
+let lfBaseLayers={}, lfOverlays={};
+let launchElMap={};                              // launch id -> marker DOM element (for recolour)
+let launchMarkerMap={};                          // launch id -> marker object (for drag/move)
+const LAUNCH_POS_KEY='updraft_launchpos_v1';     // persisted launch pin moves / edits
+const CUSTOM_LAUNCH_KEY='updraft_customlaunch_v1'; // user-added takeoffs (full objects)
+function saveLaunchPos(){const m={};LAUNCHES.forEach(s=>{m[s.id]={lat:s.lat,lon:s.lon,name:s.name,facing:s.facing,alt:s.alt,desc:s.desc};});try{localStorage.setItem(LAUNCH_POS_KEY,JSON.stringify(m));}catch(e){}}
+function loadLaunchPos(){try{const m=JSON.parse(localStorage.getItem(LAUNCH_POS_KEY));if(!m)return;LAUNCHES.forEach(s=>{const o=m[s.id];if(!o)return;
+  if(Array.isArray(o)){s.lat=o[0];s.lon=o[1];return;}                 // legacy [lat,lon]
+  if(o.lat!=null){s.lat=o.lat;s.lon=o.lon;}if(o.name)s.name=o.name;if(o.facing!=null)s.facing=o.facing;if(o.alt!=null)s.alt=o.alt;if(o.desc!=null)s.desc=o.desc;});}catch(e){}}
+function saveCustomLaunches(){try{localStorage.setItem(CUSTOM_LAUNCH_KEY,JSON.stringify(LAUNCHES.filter(s=>s.custom)));}catch(e){}}
+function loadCustomLaunches(){try{const a=JSON.parse(localStorage.getItem(CUSTOM_LAUNCH_KEY));if(Array.isArray(a))a.forEach(s=>{if(!LAUNCHES.some(x=>x.id===s.id))LAUNCHES.push(s);});}catch(e){}}
+let geoCtrl=null, lfBlueDot=null;                // geolocation: MapLibre control + Leaflet blue dot
+let currentModel='gfs_hrrr';                     // selected weather model
+const MODEL_LABELS={gfs_hrrr:'HRRR',gfs_seamless:'GFS',ecmwf_ifs025:'ECMWF',icon_seamless:'ICON',gem_seamless:'GEM',best_match:'Best'};
+// CORS-enabled tile sources (verified to drape on MapLibre)
+const TILES={
+  sat:'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+  topo:'https://basemap.nationalmap.gov/arcgis/rest/services/USGSTopo/MapServer/tile/{z}/{y}/{x}',
+  sectional:'https://tiles.arcgis.com/tiles/ssFJjBXIUyZDrSYZ/arcgis/rest/services/VFR_Sectional/MapServer/tile/{z}/{y}/{x}'
+};
+const DEM_URL='https://tiles.mapterhorn.com/tilejson.json';
+
+// ── Satellite tile ────────────────────────────────────────────────────────────
+function lon2t(lon,z){return Math.floor((lon+180)/360*Math.pow(2,z));}
+function lat2t(lat,z){return Math.floor((1-Math.log(Math.tan(lat*Math.PI/180)+1/Math.cos(lat*Math.PI/180))/Math.PI)/2*Math.pow(2,z));}
+function satUrl(lat,lon){const z=17,x=lon2t(lon,z),y=lat2t(lat,z);return`https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/${z}/${y}/${x}`;}
+
+// ── Utils ─────────────────────────────────────────────────────────────────────
+function d2c(d){return['N','NE','E','SE','S','SW','W','NW'][Math.round(d/45)%8];}
+// Civil-daylight gating: no flying before civil dawn / after civil dusk.
+let civilDawnH=null, civilDuskH=null;
+function hourOf(iso){const t=(iso||'').split('T')[1]||'0:0';const p=t.split(':');return (+p[0])+(+p[1]||0)/60;}
+function curHourLocal(){const n=new Date();return n.getHours()+n.getMinutes()/60;}
+function isNight(h){if(civilDawnH==null)return false;return h<civilDawnH||h>civilDuskH;}
+function flyS(w,g,c,t,hour){if(isNight(hour==null?curHourLocal():hour))return'no';if(t<35||w>30||g>38)return'no';if(w>18||g>25||c>85)return'caution';return'flyable';}
+function thStr(c,t,w){if(c>80)return'Weak/overcast';if(w>22)return'Rotor risk';if(t>78)return'Strong thermals';if(t>62)return'Good thermals';if(t>50)return'Light thermals';return'Minimal';}
+function hav(a,b,c,d){const R=3958.8,dL=(c-a)*Math.PI/180,dl=(d-b)*Math.PI/180,x=Math.sin(dL/2)**2+Math.cos(a*Math.PI/180)*Math.cos(c*Math.PI/180)*Math.sin(dl/2)**2;return R*2*Math.atan2(Math.sqrt(x),Math.sqrt(1-x));}
+function dest(lat,lon,brg,mi){const R=3958.8,d=mi/R,b=brg*Math.PI/180,la1=lat*Math.PI/180,lo1=lon*Math.PI/180,la2=Math.asin(Math.sin(la1)*Math.cos(d)+Math.cos(la1)*Math.sin(d)*Math.cos(b)),lo2=lo1+Math.atan2(Math.sin(b)*Math.sin(d)*Math.cos(la1),Math.cos(d)-Math.sin(la1)*Math.sin(la2));return[la2*180/Math.PI,lo2*180/Math.PI];}
+function suggestGlide(w){if(!w)return BASE_RATIO;const pen=Math.min(w.wind*0.04,1.5),bon=w.cloud<40&&w.temp>60?0.5:0;return Math.max(4,Math.min(12,Math.round((BASE_RATIO-pen+bon)*2)/2));}
+
+// ── Popup HTML ────────────────────────────────────────────────────────────────
+function bdg(s){const m={flyable:['#d1fae5','#065f46','✓ Flyable now'],caution:['#fef3c7','#92400e','⚠ Use caution'],no:['#fee2e2','#991b1b','✗ No fly today']}[s]||['#f3f4f6','#374151','— Loading'];return`<span class="ppb" style="background:${m[0]};color:${m[1]};">${m[2]}</span>`;}
+function wxG(w){if(!w)return`<div class="ppg"><div class="ppc"><div class="ppcl">Wind</div><div class="ppcv">Loading...</div></div><div class="ppc"><div class="ppcl">Gusts</div><div class="ppcv">—</div></div><div class="ppc"><div class="ppcl">Direction</div><div class="ppcv">—</div></div><div class="ppc"><div class="ppcl">Temp</div><div class="ppcv">—</div></div><div class="ppc"><div class="ppcl">Clouds</div><div class="ppcv">—</div></div><div class="ppc"><div class="ppcl">Thermals</div><div class="ppcv">—</div></div></div>`;return`<div class="ppg"><div class="ppc"><div class="ppcl">Wind</div><div class="ppcv">${w.wind} mph</div></div><div class="ppc"><div class="ppcl">Gusts</div><div class="ppcv">${w.gusts} mph</div></div><div class="ppc"><div class="ppcl">Direction</div><div class="ppcv">${d2c(w.dir)} (${w.dir}°)</div></div><div class="ppc"><div class="ppcl">Temp</div><div class="ppcv">${w.temp}°F</div></div><div class="ppc"><div class="ppcl">Clouds</div><div class="ppcv">${w.cloud}%</div></div><div class="ppc"><div class="ppcl">Thermals</div><div class="ppcv" style="font-size:10px;">${thStr(w.cloud,w.temp,w.wind)}</div></div></div>`;}
+function glideReach(site,ratio){
+  // Max reachable distance (mi) for the popup readout.
+  const cache=terrainCache[site.id];
+  if(cache){const cut=computeFootprint(site,ratio,cache);return Math.max(0,...cut.map(c=>c.mi));}
+  return ((site.alt-(site.lzAlt||4500))*ratio)/5280; // pre-terrain estimate
+}
+function glideOffHTML(){return`<div class="ppgl" style="background:#f5f5f0;border-color:#e0e0d8;color:#666;"><strong style="color:#444;">Best glide: off</strong>Flip the <b>◹ Best glide</b> toggle above to map your reachable terrain &amp; in-range LZs.</div>`;}
+function glideHTML(site,w,ratio,done){
+  if(!glideOn)return glideOffHTML();
+  const sug=suggestGlide(w);
+  if(done===false)return`<div class="ppgl-loading"><span class="spin">↻</span> Sampling terrain elevations…</div>`;
+  const mi=glideReach(site,ratio);
+  return`<div class="ppgl"><strong>Best glide: <span id="rng-${site.id}">${mi.toFixed(1)} mi / ${(mi*1.609).toFixed(1)} km</span></strong><div class="gsr"><label>Glide ratio:</label><input type="range" min="4" max="12" step="0.5" value="${ratio}" oninput="onSlide(event,'${site.id}')"/><span id="grv-${site.id}">${ratio}:1</span></div><div class="gsug">💡 Suggested: <strong>${sug}:1</strong>${w&&w.wind>20?' — strong winds reduce glide':' — terrain-following reach'}</div><div style="font-size:10px;color:#388e3c;margin-top:3px;">Shaded = reachable terrain · Gold LZs = within glide</div></div>`;
+}
+function launchPop(site,w,done,ratio){
+  const s=w?flyS(w.wind,w.gusts,w.cloud,w.temp):'caution';
+  const flyBtn=site.lzLat!=null?`<button class="flybtn" id="flybtn-${site.id}" onclick="simulateFlight('${site.id}')">🪂 Simulate flight → LZ</button>`:'';
+  const dir=`<a class="dirbtn" href="${directionsURL(site.lat,site.lon)}" target="_blank" rel="noopener">🧭 Directions to trailhead</a>`;
+  const glideToggle=`<label class="pptgl"><span>◹ Best glide</span><span class="switch"><input type="checkbox" id="pp-glide-chk" ${glideOn?'checked':''} onchange="toggleGlide()"/><span class="slider"></span></span></label>`;
+  return`<div class="pp"><div class="pp-sat" id="ppsat"></div><div class="ppn">▲ ${site.name}</div><div class="pps">${site.sub} · ${site.alt.toLocaleString()} ft · ${site.rating} · ${d2c(site.facing)}-facing</div>${bdg(s)}${wxG(w)}${glideToggle}<div id="glide-box">${glideHTML(site,w,ratio||BASE_RATIO,done)}</div>${flyBtn}${dir}<div class="ppbio">${site.desc||''}</div>${launchEditorHTML(site)}</div>`;
+}
+function lzPop(site,w,hl){
+  return`<div class="pp"><div class="pp-sat" id="ppsat"></div><div class="ppn">◼ ${site.name}</div><div class="pps">${site.sub} · ${site.alt.toLocaleString()} ft · Landing Zone</div>${hl?`<div class="ppreach">⭐ Within glide range</div>`:''}${wxG(w)}<div class="pplz"><strong style="display:block;margin-bottom:2px;">📍 Landing Zone</strong>${site.desc}</div><a class="dirbtn" href="${directionsURL(site.lat,site.lon)}" target="_blank" rel="noopener">🧭 Directions to LZ</a>${lzEditorHTML(site)}</div>`;
+}
+function onSlide(evt,sid){
+  const r=parseFloat(evt.target.value),el=document.getElementById('grv-'+sid);
+  siteRatio[sid]=r;                       // remember the chosen glide ratio for the flight sim
+  if(el)el.textContent=r+':1';
+  const site=LAUNCHES.find(s=>s.id===sid);if(!site)return;
+  drawSector(site,siteWx[sid],r);
+  const rng=document.getElementById('rng-'+sid);if(rng){const mi=glideReach(site,r);rng.textContent=`${mi.toFixed(1)} mi / ${(mi*1.609).toFixed(1)} km`;}
+}
+
+// ── Glide sector ──────────────────────────────────────────────────────────────
+let lfGlideLayers=[];
+function clearGlide(){
+  activeLzHL.forEach(id=>{const el=lzElMap[id];if(el){const r=el.querySelector('rect');if(r){r.setAttribute('fill','#3b82f6');r.setAttribute('stroke','white');}}});
+  activeLzHL=[];
+  if(useMapLibre&&mlMap){
+    // Remove ALL glide layers before ANY source (a source can't be dropped while a layer still uses it).
+    ['g-sector','g-sector-ol','g-line'].forEach(id=>{try{if(mlMap.getLayer(id))mlMap.removeLayer(id);}catch(e){}});
+    ['g-sector','g-line'].forEach(id=>{try{if(mlMap.getSource(id))mlMap.removeSource(id);}catch(e){}});
+  } else if(lfMap){
+    lfGlideLayers.forEach(l=>{try{lfMap.removeLayer(l);}catch(e){}});lfGlideLayers=[];
+  }
+}
+function drawSector(site,w,ratio){
+  clearGlide();
+  const s=w?flyS(w.wind,w.gusts,w.cloud,w.temp):'caution';
+  const col={flyable:'#22c55e',caution:'#facc15',no:'#ef4444'}[s];
+  const cache=terrainCache[site.id];
+  let pts, rayCut=null;
+  if(cache){
+    rayCut=computeFootprint(site,ratio,cache);          // terrain-following outline
+    pts=rayCut.map(c=>[c.la,c.lo]);
+  }else{
+    const vert=site.alt-(site.lzAlt||4500),maxMi=(vert*ratio)/5280;
+    pts=[];for(let a=-SECTOR;a<=SECTOR;a+=4){const[la,lo]=dest(site.lat,site.lon,(site.facing+a+360)%360,maxMi);pts.push([la,lo]);}
+  }
+  // longest reachable spoke -> glide direction line
+  let tla,tlo,best=-1;
+  (rayCut||[]).forEach(c=>{if(c.mi>best){best=c.mi;tla=c.la;tlo=c.lo;}});
+  if(best<0){const m=((site.alt-(site.lzAlt||4500))*ratio)/5280;[tla,tlo]=dest(site.lat,site.lon,site.facing,m);}
+
+  try{
+    if(useMapLibre&&mlMap){
+      const coords=[[site.lon,site.lat],...pts.map(([la,lo])=>[lo,la]),[site.lon,site.lat]];
+      mlMap.addSource('g-sector',{type:'geojson',data:{type:'Feature',geometry:{type:'Polygon',coordinates:[coords]}}});
+      mlMap.addLayer({id:'g-sector',type:'fill',source:'g-sector',paint:{'fill-color':col,'fill-opacity':0.2}});
+      mlMap.addLayer({id:'g-sector-ol',type:'line',source:'g-sector',paint:{'line-color':col,'line-width':2,'line-dasharray':[6,3]}});
+      mlMap.addSource('g-line',{type:'geojson',data:{type:'Feature',geometry:{type:'LineString',coordinates:[[site.lon,site.lat],[tlo,tla]]}}});
+      mlMap.addLayer({id:'g-line',type:'line',source:'g-line',paint:{'line-color':col,'line-width':2.5,'line-dasharray':[8,4]}});
+    } else if(lfMap){
+      const poly=L.polygon([[site.lat,site.lon],...pts,[site.lat,site.lon]],{color:col,fillColor:col,fillOpacity:0.2,weight:2,dashArray:'6,4'}).addTo(lfMap);
+      const line=L.polyline([[site.lat,site.lon],[tla,tlo]],{color:col,weight:2.5,dashArray:'8,4'}).addTo(lfMap);
+      lfGlideLayers.push(poly,line);
+    }
+  }catch(e){console.warn('drawSector',e);}
+  // Highlight reachable LZs against the actual footprint
+  (lzStore.length?lzStore:ALL_LZS).forEach(lz=>{
+    if(!lz.lat||!lz.lon)return;
+    const dist=hav(site.lat,site.lon,lz.lat,lz.lon);
+    const dLon=(lz.lon-site.lon)*Math.PI/180,la1=site.lat*Math.PI/180,la2=lz.lat*Math.PI/180;
+    const yy=Math.sin(dLon)*Math.cos(la2),xx=Math.cos(la1)*Math.sin(la2)-Math.sin(la1)*Math.cos(la2)*Math.cos(dLon);
+    const brg=((Math.atan2(yy,xx)*180/Math.PI)+360)%360;
+    let diff=Math.abs(brg-site.facing);if(diff>180)diff=360-diff;if(diff>SECTOR+10)return;
+    let reach;
+    if(rayCut){let bd=999;reach=0;rayCut.forEach(c=>{let d=Math.abs(((c.brg-brg+540)%360)-180);if(d<bd){bd=d;reach=c.mi;}});}
+    else reach=((site.alt-(site.lzAlt||4500))*ratio)/5280;
+    if(dist>reach+0.2)return;
+    activeLzHL.push(lz.id);
+    const el=lzElMap[lz.id];if(el){const r=el.querySelector('rect');if(r){r.setAttribute('fill','#d97706');r.setAttribute('stroke','#fde047');}}
+  });
+}
+
+// ── Terrain sampling (batched open-meteo elevation, cached per site) ───────────
+const RAYS=17, RAY_STEP=0.35, CLEARANCE=80; // rays across sector, mi per step, ft to clear terrain
+async function sampleTerrain(site){
+  if(terrainCache[site.id])return terrainCache[site.id];
+  const bar=document.getElementById('terrain-bar'),fill=document.getElementById('tfill');
+  if(bar){bar.style.display='flex';}if(fill)fill.style.width='0%';
+  const vert=site.alt-(site.lzAlt||4500);
+  const maxMi=Math.min(28,Math.max(3,(vert*12)/5280));     // bound by best plausible glide (12:1)
+  const nSteps=Math.min(48,Math.max(6,Math.ceil(maxMi/RAY_STEP)));
+  const rays=[],flat=[];
+  for(let r=0;r<RAYS;r++){
+    const brg=(site.facing-SECTOR+(2*SECTOR)*(r/(RAYS-1))+360)%360;
+    const samples=[];
+    for(let s=1;s<=nSteps;s++){const mi=s*RAY_STEP;const[la,lo]=dest(site.lat,site.lon,brg,mi);const p={mi,la,lo,elev:null};samples.push(p);flat.push(p);}
+    rays.push({brg,samples});
+  }
+  const CH=100,chunks=[];for(let i=0;i<flat.length;i+=CH)chunks.push(flat.slice(i,i+CH));
+  let done=0;
+  await Promise.all(chunks.map(async chunk=>{
+    const la=chunk.map(p=>p.la.toFixed(5)).join(','),lo=chunk.map(p=>p.lo.toFixed(5)).join(',');
+    try{const r=await fetch(`https://api.open-meteo.com/v1/elevation?latitude=${la}&longitude=${lo}`);const j=await r.json();const el=j.elevation||[];chunk.forEach((p,i)=>{if(el[i]!=null)p.elev=el[i]*3.28084;});}catch(e){}
+    done++;if(fill)fill.style.width=`${Math.round(done/chunks.length*100)}%`;
+  }));
+  if(bar)bar.style.display='none';
+  const cache={rays,maxMi};terrainCache[site.id]=cache;return cache;
+}
+// Pure: cut each ray where the glide path drops into terrain -> reachable endpoints.
+function computeFootprint(site,ratio,cache){
+  const sinkPerMi=5280/ratio;
+  return cache.rays.map(ry=>{
+    let lastMi=0,lastLa=site.lat,lastLo=site.lon;
+    for(const sp of ry.samples){
+      const glideAlt=site.alt-sp.mi*sinkPerMi;
+      if(sp.elev!=null&&glideAlt<=sp.elev+CLEARANCE)break; // terrain intercept
+      lastMi=sp.mi;lastLa=sp.la;lastLo=sp.lo;
+    }
+    return{brg:ry.brg,mi:lastMi,la:lastLa,lo:lastLo};
+  });
+}
+
+// ── 3D mini-map thumbnail (popup) ─────────────────────────────────────────────
+function destroyMini(){if(miniMap){try{miniMap.remove();}catch(e){}miniMap=null;}}
+function mountThumb(site,facing){
+  const c=document.getElementById('ppsat');if(!c)return;
+  destroyMini();
+  if(useMapLibre&&window.maplibregl){
+    c.innerHTML='<div class="pp-sat-tag">🛰 3D · Esri</div>';
+    try{
+      // Frame the launch from its downhill side looking back INTO the takeoff slope,
+      // so you're looking straight at it the way you'd run off (a west-facing launch
+      // → camera to the west looking east). Nudge the centre downhill so the slope
+      // sits in the middle of the frame; LZs stay centred top-down.
+      // Centre ON the takeoff itself and look back INTO the slope (camera on the
+      // downhill side), so the launch sits in the middle of the frame the way
+      // you'd face running off. LZs stay centred top-down.
+      let brg=0,zoom=15,pitch=55;
+      if(facing!=null){brg=(facing+180)%360;}               // look back up the slope
+      else{zoom=15.2;pitch=52;}                             // LZ: closer, flatter
+      const mini=new maplibregl.Map({
+        container:c,interactive:false,attributionControl:false,
+        center:[site.lon,site.lat],zoom:zoom,pitch:pitch,bearing:brg,
+        style:{version:8,sources:{
+          sat:{type:'raster',tiles:[TILES.sat],tileSize:256},
+          dem:{type:'raster-dem',url:DEM_URL,tileSize:512}
+        },layers:[{id:'sat',type:'raster',source:'sat'}]}
+      });
+      mini.on('load',()=>{try{mini.setTerrain({source:'dem',exaggeration:1.5});}catch(e){}});
+      mini.on('error',()=>{});
+      miniMap=mini;
+    }catch(e){c.innerHTML=`<img src="${satUrl(site.lat,site.lon)}" style="width:100%;height:148px;object-fit:cover;border-radius:8px;" onerror="this.style.display='none'"/>`;}
+  }else{
+    c.innerHTML=`<img src="${satUrl(site.lat,site.lon)}" style="width:100%;height:148px;object-fit:cover;border-radius:8px;" onerror="this.style.display='none'"/>`;
+  }
+}
+
+// ── Layer panel (base maps + VFR sectional overlay) ───────────────────────────
+function toggleLayerPanel(){document.getElementById('layer-panel').classList.toggle('open');}
+function setBaseLayer(name){
+  if(useMapLibre&&mlMap){
+    ['sat','topo'].forEach(id=>{try{mlMap.setLayoutProperty(id,'visibility',name===id?'visible':'none');}catch(e){}});
+  }else if(lfMap){
+    Object.values(lfBaseLayers).forEach(l=>{try{lfMap.removeLayer(l);}catch(e){}});
+    const l=lfBaseLayers[name]||lfBaseLayers.streets;if(l){l.addTo(lfMap);try{l.bringToBack();}catch(e){}}
+    if(lfOverlays.sectional&&lfMap.hasLayer(lfOverlays.sectional)){try{lfOverlays.sectional.bringToFront();}catch(e){}}
+  }
+}
+function toggleOverlay(name,on){
+  if(useMapLibre&&mlMap){try{mlMap.setLayoutProperty(name,'visibility',on?'visible':'none');}catch(e){}}
+  else if(lfMap){const l=lfOverlays[name];if(!l)return;if(on){l.addTo(lfMap);try{l.bringToFront();}catch(e){}}else lfMap.removeLayer(l);}
+}
+
+// ── Simulated flight path (8:1 glide → corkscrew spiral to the LZ) ─────────────
+const M=0.3048;                                   // ft -> metres
+function bearingTo(la1,lo1,la2,lo2){const φ1=la1*Math.PI/180,φ2=la2*Math.PI/180,Δλ=(lo2-lo1)*Math.PI/180;const y=Math.sin(Δλ)*Math.cos(φ2),x=Math.cos(φ1)*Math.sin(φ2)-Math.sin(φ1)*Math.cos(φ2)*Math.cos(Δλ);return((Math.atan2(y,x)*180/Math.PI)+360)%360;}
+// Fetch true ground elevation (metres) for a set of [lat,lon] points in one call.
+async function getGroundElevs(coords){
+  try{
+    const la=coords.map(c=>c[0].toFixed(5)).join(','),lo=coords.map(c=>c[1].toFixed(5)).join(',');
+    const r=await fetch(`https://api.open-meteo.com/v1/elevation?latitude=${la}&longitude=${lo}`);
+    const j=await r.json();return j.elevation||[];
+  }catch(e){return [];}
+}
+// Build the flight in RENDER-altitude space (metres as MapLibre's terrain reports them, via
+// queryTerrainElevation). startR/lzR are the rendered ground heights at launch & LZ so the path
+// sits on the launch and touches down on the LZ; vScale converts a true 8:1 drop into render units.
+function buildFlightPath(site,startR,lzR,vScale){
+  if(site.lzLat==null||site.lzLon==null)return null;
+  const Dm=hav(site.lat,site.lon,site.lzLat,site.lzLon)*1609.34;  // metres launch->LZ
+  const trueDrop=Dm/8;                                            // true metres lost over the glide at 8:1
+  let overR=startR-trueDrop*vScale;                               // render alt arriving over the LZ
+  if(overR<lzR+5*vScale)overR=lzR+5*vScale;                       // keep a little spiral height
+  const pts=[];
+  // glide: straight line launch -> over LZ, descending at 8:1
+  const NG=80;for(let i=0;i<=NG;i++){const t=i/NG;pts.push({lng:site.lon+(site.lzLon-site.lon)*t,lat:site.lat+(site.lzLat-site.lat)*t,alt:startR+(overR-startR)*t});}
+  // corkscrew: spiral down over the LZ, radius funnelling in toward the centre
+  const NS=210, turns=3.5, R0=0.05, brg0=bearingTo(site.lzLat,site.lzLon,site.lat,site.lon);
+  for(let i=1;i<=NS;i++){const t=i/NS;const ang=(brg0+t*turns*360)%360;const R=R0*(1-0.85*t);const[la,lo]=dest(site.lzLat,site.lzLon,ang,R);pts.push({lng:lo,lat:la,alt:overR+(lzR-overR)*t});}
+  pts.push({lng:site.lzLon,lat:site.lzLat,alt:lzR});             // touchdown at LZ centre
+  return pts;
+}
+const FINAL_CF=0.78;        // fraction of the route flown as cruise; the rest is the straight final approach
+// Plan a ground track launch→LZ. If terrain pokes through the straight glide, bow the cruise leg
+// sideways around it (toward the lower side); the last leg stays straight in line with the LZ.
+async function planRoute(site,startTrue,lzTrue){
+  const A=[site.lat,site.lon],B=[site.lzLat,site.lzLon];
+  const distMi=hav(A[0],A[1],B[0],B[1]);
+  const brgAB=bearingTo(A[0],A[1],B[0],B[1]);
+  const dFinalMi=Math.min(0.45,distMi*0.22);                  // length of the straight final approach
+  const FAF=dest(B[0],B[1],(brgAB+180)%360,dFinalMi);         // "final approach fix" on the inbound line
+  // sample terrain along the cruise leg A→FAF and compare to the descending glide altitude
+  const N=20,line=[];for(let i=0;i<=N;i++){const t=i/N;line.push([A[0]+(FAF[0]-A[0])*t,A[1]+(FAF[1]-A[1])*t]);}
+  let elevs=[];try{elevs=await getGroundElevs(line);}catch(e){}
+  const CLEAR=100*0.3048;let maxIntr=0,intrAt=0.5;          // only curve if terrain comes within 100 ft of the glide
+  for(let i=Math.ceil(N*0.22);i<=N;i++){const t=i/N;const ga=startTrue+(lzTrue-startTrue)*t;const te=elevs[i];
+    if(te!=null){const intr=(te+CLEAR)-ga;if(intr>maxIntr){maxIntr=intr;intrAt=t;}}}   // skip launch zone (you're near the hill there)
+  let ctrl=null;
+  if(maxIntr>0){                                              // straight line would hit terrain → detour
+    const offMi=Math.min(1.1,distMi*0.22+maxIntr/350);        // how far to bow out, scaled by intrusion
+    const mid=[A[0]+(FAF[0]-A[0])*intrAt,A[1]+(FAF[1]-A[1])*intrAt];
+    const L=dest(mid[0],mid[1],(brgAB-90+360)%360,offMi),R=dest(mid[0],mid[1],(brgAB+90)%360,offMi);
+    let se=[];try{se=await getGroundElevs([L,R]);}catch(e){}
+    ctrl=((se[0]??9e9)<=(se[1]??9e9))?L:R;                    // curve toward the lower-terrain side
+  }
+  function route(t){
+    if(t<=FINAL_CF){const u=t/FINAL_CF;
+      if(ctrl){const v=1-u;return[v*v*A[0]+2*v*u*ctrl[0]+u*u*FAF[0],v*v*A[1]+2*v*u*ctrl[1]+u*u*FAF[1]];}
+      return[A[0]+(FAF[0]-A[0])*u,A[1]+(FAF[1]-A[1])*u];}
+    const u=(t-FINAL_CF)/(1-FINAL_CF);return[FAF[0]+(B[0]-FAF[0])*u,FAF[1]+(B[1]-FAF[1])*u];
+  }
+  return{route,curved:!!ctrl};
+}
+// Build the flight in RENDER space along the planned route: steady cruise descent, then a shallow
+// airplane-style final approach with a flare (descent slows toward touchdown), ending exactly on the LZ.
+function buildFlightPath2(site,startR,lzR,vScale,plan){
+  const approachR=lzR+Math.max(35*vScale,0.12*(startR-lzR));  // height to begin the final approach
+  const pts=[],N=140;
+  for(let i=0;i<=N;i++){const t=i/N;const[la,lo]=plan.route(t);let alt;
+    if(t<=FINAL_CF){const u=t/FINAL_CF;alt=startR+(approachR-startR)*u;}              // cruise glide
+    else{const u=(t-FINAL_CF)/(1-FINAL_CF);const e=1-Math.pow(1-u,1.8);alt=approachR+(lzR-approachR)*e;} // flared final
+    pts.push({lng:lo,lat:la,alt});}
+  pts[pts.length-1]={lng:site.lzLon,lat:site.lzLat,alt:lzR};  // exact touchdown
+  return pts;
+}
+let flightLayer=null, flightRAF=null, lfFlight=[], siteRatio={};
+// Light weighted-average smoothing so phase junctions (glide→spiral→landing) have no sharp corners.
+function smoothPath(pts,passes){
+  for(let p=0;p<passes;p++){
+    const out=pts.map(o=>({...o}));
+    for(let i=1;i<pts.length-1;i++){
+      out[i]={lng:(pts[i-1].lng+2*pts[i].lng+pts[i+1].lng)/4,
+              lat:(pts[i-1].lat+2*pts[i].lat+pts[i+1].lat)/4,
+              alt:(pts[i-1].alt+2*pts[i].alt+pts[i+1].alt)/4};
+    }
+    pts=out;
+  }
+  return pts;
+}
+// Build the flight in RENDER space: glide out along the planned route descending at the SELECTED
+// glide ratio, then corkscrew over the LZ down to near the ground, then a short straight landing in.
+function buildFlightPath3(site,startR,lzR,vScale,plan,ratio){
+  const M2=1609.34;                                  // miles → metres
+  const NG=120, samp=[]; let prev=null,acc=0;
+  for(let i=0;i<=NG;i++){const t=i/NG;const[la,lo]=plan.route(t);if(prev)acc+=hav(prev[0],prev[1],la,lo)*M2;prev=[la,lo];samp.push({la,lo,s:acc});}
+  const spiralFloor=lzR+Math.max(28*vScale,0.05*(startR-lzR));   // altitude to finish the spiral & start landing
+  const pts=[];
+  // PHASE A — glide at the selected ratio: lose 1 unit of height per `ratio` units travelled.
+  let cut=samp.length-1, hitFloor=false;
+  for(let i=0;i<samp.length;i++){const alt=startR-(samp[i].s/ratio)*vScale;if(alt<=spiralFloor){cut=i;hitFloor=true;break;}}
+  for(let i=0;i<=cut;i++){const alt=Math.max(startR-(samp[i].s/ratio)*vScale,spiralFloor);pts.push({lng:samp[i].lo,lat:samp[i].la,alt});}
+  const last=samp[cut], entryAlt=Math.max(startR-(last.s/ratio)*vScale,spiralFloor);
+  // PHASE B — corkscrew over the LZ, funnelling inward, until close to the ground (only if there's excess height).
+  if(!hitFloor && entryAlt>spiralFloor+2*vScale){
+    const drop=entryAlt-spiralFloor, turns=Math.min(6,Math.max(2,drop/(50*vScale)));
+    const NS=Math.max(120,Math.round(turns*64)), R0=0.07, Rend=0.02;
+    const brg0=bearingTo(site.lzLat,site.lzLon,last.la,last.lo);
+    for(let i=1;i<=NS;i++){const t=i/NS;const ang=(brg0+t*turns*360)%360;const R=R0+(Rend-R0)*t;const[la,lo]=dest(site.lzLat,site.lzLon,ang,R);
+      pts.push({lng:lo,lat:la,alt:entryAlt+(spiralFloor-entryAlt)*t});}
+  }
+  // PHASE C — straight landing into the LZ with a flare (descent eases off toward touchdown).
+  const sp=pts[pts.length-1], NF=34;
+  for(let i=1;i<=NF;i++){const t=i/NF;const la=sp.lat+(site.lzLat-sp.lat)*t,lo=sp.lng+(site.lzLon-sp.lng)*t;
+    const e=1-Math.pow(1-t,2.0);pts.push({lng:lo,lat:la,alt:sp.alt+(lzR-sp.alt)*e});}
+  pts=smoothPath(pts,2);                                       // round off the phase junctions
+  const lift=5*vScale;                                         // ride a few m above ground → no z-fighting flicker
+  pts[0]={lng:site.lon,lat:site.lat,alt:startR};              // re-pin launch
+  pts[pts.length-1]={lng:site.lzLon,lat:site.lzLat,alt:lzR};  // re-pin touchdown
+  pts.forEach(p=>p.alt+=lift);
+  return pts;
+}
+function makeFlightLayer(){
+  return {
+    id:'flight3d', type:'custom', renderingMode:'3d', progress:0, count:0,
+    onAdd(map,gl){
+      this.map=map;
+      const vs=`uniform mat4 u_matrix;attribute vec3 a_pos;uniform float u_size;void main(){gl_Position=u_matrix*vec4(a_pos,1.0);gl_PointSize=u_size;}`;
+      const fs=`precision mediump float;uniform vec4 u_color;uniform float u_round;void main(){if(u_round>0.5){vec2 c=gl_PointCoord-vec2(0.5);if(dot(c,c)>0.25)discard;}gl_FragColor=u_color;}`;
+      const mk=(t,s)=>{const x=gl.createShader(t);gl.shaderSource(x,s);gl.compileShader(x);return x;};
+      this.p=gl.createProgram();gl.attachShader(this.p,mk(gl.VERTEX_SHADER,vs));gl.attachShader(this.p,mk(gl.FRAGMENT_SHADER,fs));gl.linkProgram(this.p);
+      this.aPos=gl.getAttribLocation(this.p,'a_pos');this.uMat=gl.getUniformLocation(this.p,'u_matrix');this.uCol=gl.getUniformLocation(this.p,'u_color');this.uSize=gl.getUniformLocation(this.p,'u_size');this.uRound=gl.getUniformLocation(this.p,'u_round');
+      this.buf=gl.createBuffer();
+    },
+    setData(verts){const gl=this.map.painter.context.gl;this.count=verts.length/3;gl.bindBuffer(gl.ARRAY_BUFFER,this.buf);gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(verts),gl.STATIC_DRAW);},
+    render(gl,matrix){
+      if(!this.count)return;
+      gl.useProgram(this.p);
+      // MapLibre hands us a Float64Array matrix; uniformMatrix4fv needs a Float32Array, otherwise the
+      // path jumps/glitches as the camera moves. Coerce it every frame.
+      const rawMat=matrix&&matrix.defaultProjectionData?matrix.defaultProjectionData.mainMatrix:matrix;
+      gl.uniformMatrix4fv(this.uMat,false,rawMat instanceof Float32Array?rawMat:new Float32Array(rawMat));
+      gl.bindBuffer(gl.ARRAY_BUFFER,this.buf);gl.enableVertexAttribArray(this.aPos);gl.vertexAttribPointer(this.aPos,3,gl.FLOAT,false,0,0);
+      // Draw over the terrain (no depth test — terrain's depth buffer would cull the whole path).
+      // The Float32Array matrix coercion above is what actually stops the jitter on camera moves.
+      gl.disable(gl.DEPTH_TEST);
+      gl.enable(gl.BLEND);gl.blendFunc(gl.SRC_ALPHA,gl.ONE_MINUS_SRC_ALPHA);
+      const n=Math.max(2,Math.floor(this.count*this.progress));
+      gl.uniform1f(this.uRound,0.0);                                                               // lines: no circular discard
+      gl.uniform4f(this.uCol,0.20,0.50,0.98,0.40);gl.drawArrays(gl.LINE_STRIP,0,this.count);       // faint full route
+      gl.uniform4f(this.uCol,0.10,0.40,1.0,1.0);gl.drawArrays(gl.LINE_STRIP,0,n);                   // flown so far
+      gl.uniform1f(this.uRound,1.0);                                                                // round points
+      gl.uniform1f(this.uSize,6.0);gl.uniform4f(this.uCol,0.35,0.65,1.0,0.95);gl.drawArrays(gl.POINTS,0,n);
+      gl.uniform1f(this.uSize,15.0);gl.uniform4f(this.uCol,1.0,0.80,0.12,1.0);gl.drawArrays(gl.POINTS,Math.max(0,n-1),1); // glider head
+    }
+  };
+}
+function clearFlight(){
+  if(flightRAF){cancelAnimationFrame(flightRAF);flightRAF=null;}
+  if(useMapLibre&&mlMap){try{if(mlMap.getLayer('flight3d'))mlMap.removeLayer('flight3d');}catch(e){}flightLayer=null;}
+  if(lfMap){lfFlight.forEach(l=>{try{lfMap.removeLayer(l);}catch(e){}});lfFlight=[];}
+}
+async function simulateFlight(sid){
+  const site=LAUNCHES.find(s=>s.id===sid);if(!site||site.lzLat==null)return;
+  clearFlight();
+  const btn=document.getElementById('flybtn-'+sid);if(btn){btn.disabled=true;btn.textContent='🪂 Flying…';}
+  const plan=await planRoute(site,site.alt*M,(site.lzAlt||4500)*M);   // terrain-aware ground track (curves around peaks)
+  const ratio=siteRatio[sid]||BASE_RATIO;                             // honour the glide-ratio slider
+  if(useMapLibre&&mlMap){
+    // frame the run: look from the LZ side back toward the launch so the glider
+    // flies toward the camera (visible) instead of away from it.
+    const brg=(bearingTo(site.lat,site.lon,site.lzLat,site.lzLon)+180+62)%360;   // off-axis: view the run more from the side, not head-on
+    mlMap.easeTo({center:[(site.lon+site.lzLon)/2,(site.lat+site.lzLat)/2],zoom:14.4,pitch:76,bearing:brg,padding:{right:330,left:0,top:0,bottom:0},duration:900});
+    // wait for DEM tiles so queryTerrainElevation (which matches what's drawn) is valid
+    await new Promise(r=>{let done=false;const fin=()=>{if(!done){done=true;r();}};mlMap.once('idle',fin);setTimeout(fin,2600);});
+    // sample terrain; retry briefly if tiles aren't ready so the endpoints actually sit on the ground
+    let startR=null,lzR=null;
+    for(let tries=0;tries<8;tries++){
+      startR=mlMap.queryTerrainElevation([site.lon,site.lat]);
+      lzR=mlMap.queryTerrainElevation([site.lzLon,site.lzLat]);
+      if(startR!=null&&lzR!=null)break;
+      await new Promise(r=>setTimeout(r,180));
+    }
+    if(startR==null||lzR==null){const ex=(exagOn?1.5:1);startR=site.alt*M*ex;lzR=(site.lzAlt||4500)*M*ex;} // terrain not ready: match exaggeration
+    const trueRelief=Math.max(30,(site.alt-(site.lzAlt||4500))*M);
+    let vScale=(startR-lzR)/trueRelief;if(!isFinite(vScale)||vScale<=0)vScale=1;
+    const path=buildFlightPath3(site,startR,lzR,vScale,plan,ratio);
+    const verts=[];path.forEach(p=>{const mc=maplibregl.MercatorCoordinate.fromLngLat([p.lng,p.lat],p.alt);verts.push(mc.x,mc.y,mc.z);});
+    flightLayer=makeFlightLayer();
+    mlMap.addLayer(flightLayer);
+    flightLayer.setData(verts);
+    flightLayer.progress=0;
+    const t0=performance.now(), DUR=8000;
+    const step=now=>{const e=Math.min(1,(now-t0)/DUR);flightLayer.progress=e;mlMap.triggerRepaint();if(e<1)flightRAF=requestAnimationFrame(step);else if(btn){btn.disabled=false;btn.textContent='🪂 Replay flight → LZ';}};
+    flightRAF=requestAnimationFrame(step);
+  } else if(lfMap){
+    // 2D fallback: animated ground track + glider dot (altitude irrelevant in 2D)
+    const path=buildFlightPath3(site,site.alt*M,(site.lzAlt||4500)*M,1,plan,ratio);
+    const latlngs=path.map(p=>[p.lat,p.lng]);
+    const full=L.polyline(latlngs,{color:'#3b82f6',weight:2,opacity:0.4}).addTo(lfMap);
+    const flown=L.polyline([],{color:'#2563eb',weight:3}).addTo(lfMap);
+    const dot=L.circleMarker(latlngs[0],{radius:6,color:'#d97706',fillColor:'#fbbf24',fillOpacity:1,weight:2}).addTo(lfMap);
+    lfFlight.push(full,flown,dot);
+    const t0=performance.now(),DUR=7000;
+    const step=now=>{const e=Math.min(1,(now-t0)/DUR);const n=Math.max(1,Math.floor(latlngs.length*e));flown.setLatLngs(latlngs.slice(0,n));dot.setLatLng(latlngs[n-1]);if(e<1)flightRAF=requestAnimationFrame(step);else if(btn){btn.disabled=false;btn.textContent='🪂 Replay flight → LZ';}};
+    flightRAF=requestAnimationFrame(step);
+  }
+}
+function clearAll(){clearGlide();clearFlight();}
+
+// ── Weather ───────────────────────────────────────────────────────────────────
+async function fetchHRRR(lat,lon){
+  const k=`${currentModel}|${lat.toFixed(2)},${lon.toFixed(2)}`;if(wxCache[k])return wxCache[k];
+  try{const r=await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,apparent_temperature,relative_humidity_2m,surface_pressure,wind_speed_10m,wind_direction_10m,wind_gusts_10m,cloud_cover&hourly=temperature_2m,wind_speed_10m,wind_direction_10m,wind_gusts_10m,cloud_cover&daily=sunrise,sunset&wind_speed_unit=mph&temperature_unit=fahrenheit&timezone=America%2FDenver&models=${currentModel}&forecast_days=1`);const d=await r.json();const c=d.current;
+    if(d.daily&&d.daily.sunrise&&d.daily.sunrise[0]){civilDawnH=hourOf(d.daily.sunrise[0])-0.5;civilDuskH=hourOf(d.daily.sunset[0])+0.5;}  // civil twilight ≈ ±30 min
+    const res={wind:Math.round(c.wind_speed_10m),gusts:Math.round(c.wind_gusts_10m),dir:Math.round(c.wind_direction_10m),cloud:Math.round(c.cloud_cover),temp:Math.round(c.temperature_2m),app:Math.round(c.apparent_temperature),rh:Math.round(c.relative_humidity_2m),pres:Math.round(c.surface_pressure),hourly:d.hourly};wxCache[k]=res;return res;}catch{return null;}
+}
+function setModel(m){currentModel=m;loadWeather();}
+function updateVane(w,label){if(!w)return;if(label)document.getElementById('wvt').textContent=label;document.getElementById('varrow').setAttribute('transform',`rotate(${w.dir},34,34)`);document.getElementById('vspeed').textContent=w.wind+' mph';document.getElementById('vdir').textContent=d2c(w.dir)+' wind';document.getElementById('vgust').textContent='Gust '+(w.gusts??'—')+' mph';const sc=flyS(w.wind,w.gusts??w.wind,w.cloud??0,w.temp??60);document.getElementById('wind-vane').style.borderTopColor=sc==='flyable'?'#22c55e':sc==='caution'?'#facc15':'#ef4444';}
+// Cursor wind probe — debounced + grid-cached current wind wherever the mouse rests.
+let probeTimer=null, probeCache={}, lastProbeKey=null;
+function probeWind(lat,lon){
+  if(lat==null||lon==null)return;
+  const key=`${currentModel}|${lat.toFixed(2)},${lon.toFixed(2)}`;
+  if(key===lastProbeKey)return;
+  clearTimeout(probeTimer);
+  probeTimer=setTimeout(async()=>{
+    lastProbeKey=key;
+    let w=probeCache[key];
+    if(!w){
+      try{const r=await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat.toFixed(3)}&longitude=${lon.toFixed(3)}&current=temperature_2m,wind_speed_10m,wind_direction_10m,wind_gusts_10m,cloud_cover&wind_speed_unit=mph&temperature_unit=fahrenheit&models=${currentModel}`);const d=await r.json();const c=d.current;w={wind:Math.round(c.wind_speed_10m),gusts:Math.round(c.wind_gusts_10m),dir:Math.round(c.wind_direction_10m),cloud:Math.round(c.cloud_cover),temp:Math.round(c.temperature_2m)};probeCache[key]=w;}catch(e){return;}
+    }
+    if(key!==lastProbeKey)return; // moved on while fetching
+    updateVane(w,'Wind @ cursor');
+  },320);
+}
+// ── NOW bar: detailed current-conditions strip ────────────────────────────────
+function cloudWord(c){return c<25?'Clear':c<55?'Partly cloudy':c<85?'Mostly cloudy':'Overcast';}
+const WX_MODELS=[['gfs_hrrr','HRRR 3km'],['gfs_seamless','GFS'],['ecmwf_ifs025','ECMWF'],['icon_seamless','ICON'],['gem_seamless','GEM'],['best_match','Best match']];
+function modelSelectHTML(){return`<select class="nb-model" title="Weather model" onchange="setModel(this.value)">${WX_MODELS.map(([v,l])=>`<option value="${v}"${v===currentModel?' selected':''}>${l}</option>`).join('')}</select>`;}
+function renderNow(w,label){
+  if(!w)return;
+  const app=w.app??w.temp, rh=w.rh, pres=w.pres;
+  const arrow=`<span class="nb-dir-arrow" style="transform:rotate(${(w.dir+180)%360}deg)">↑</span>`;
+  const m=(l,v,sub)=>`<div class="nb-m"><div class="nb-ml">${l}</div><div class="nb-mv">${v}</div><div class="nb-ms">${sub||''}</div></div>`;
+  const loc=(label||'Salt Lake City').replace(/</g,'&lt;');
+  document.getElementById('now-bar').innerHTML=
+    `<div class="nb-status">${modelSelectHTML()}<span class="nb-loc">📍 ${loc}</span></div>`+
+    `<div class="nb-metrics">`+
+      m('Wind',`${arrow}${w.wind}`,`${d2c(w.dir)} ${w.dir}° · mph`)+
+      m('Gusts',`${w.gusts}`,'mph peak')+
+      m('Temp',`${w.temp}°`,`feels ${app}°`)+
+      (rh!=null?m('Humidity',`${rh}%`,'rel.'):'')+
+      m('Clouds',`${w.cloud}%`,cloudWord(w.cloud))+
+      (pres!=null?m('Pressure',`${pres}`,'hPa'):'')+
+    `</div>`;
+}
+
+// ── Long scrollable forecast (auto-extends, switches models for range) ─────────
+let fcSeries=[];
+const FC_LAT=40.52, FC_LON=-111.87, FC_TARGET_H=10*24;   // aim for ~10 days of hours
+async function fetchSeries(model,days){
+  const u=`https://api.open-meteo.com/v1/forecast?latitude=${FC_LAT}&longitude=${FC_LON}`+
+    `&hourly=temperature_2m,apparent_temperature,relative_humidity_2m,precipitation,precipitation_probability,cloud_cover,wind_speed_10m,wind_gusts_10m,wind_direction_10m,surface_pressure`+
+    `&daily=sunrise,sunset&timezone=America%2FDenver&wind_speed_unit=mph&temperature_unit=fahrenheit&precipitation_unit=inch&models=${model}&forecast_days=${days}`;
+  const r=await fetch(u);return r.json();
+}
+function entriesFrom(j,label){
+  const h=j&&j.hourly;if(!h||!h.time)return[];
+  const out=[];
+  for(let i=0;i<h.time.length;i++){
+    const ws=h.wind_speed_10m[i];if(ws==null)continue;        // model ran out of range
+    out.push({t:h.time[i],model:label,
+      wind:Math.round(ws),gust:Math.round(h.wind_gusts_10m[i]??ws),dir:Math.round(h.wind_direction_10m[i]??0),
+      temp:Math.round(h.temperature_2m[i]),app:Math.round(h.apparent_temperature?.[i]??h.temperature_2m[i]),
+      rh:Math.round(h.relative_humidity_2m?.[i]??0),cloud:Math.round(h.cloud_cover[i]??0),
+      precip:h.precipitation?.[i]??0,pop:Math.round(h.precipitation_probability?.[i]??0),pres:Math.round(h.surface_pressure?.[i]??0)});
+  }
+  return out;
+}
+async function loadForecast(){
+  let jsel=null;try{jsel=await fetchSeries(currentModel,16);}catch(e){}
+  if(jsel&&jsel.daily&&jsel.daily.sunrise&&jsel.daily.sunrise[0]){civilDawnH=hourOf(jsel.daily.sunrise[0])-0.5;civilDuskH=hourOf(jsel.daily.sunset[0])+0.5;}
+  let series=entriesFrom(jsel,MODEL_LABELS[currentModel]||currentModel);
+  const lastT=series.length?new Date(series[series.length-1].t):null;
+  const reachH=lastT?(lastT-Date.now())/36e5:0;
+  // If the chosen model can't reach our target horizon, extend with a long-range model.
+  if(currentModel!=='best_match'&&reachH<FC_TARGET_H-12){
+    let jx=null;try{jx=await fetchSeries('best_match',16);}catch(e){}
+    const ext=entriesFrom(jx,'Best match').filter(e=>!lastT||new Date(e.t)>lastT);
+    series=series.concat(ext);
+  }
+  fcSeries=series;renderForecast(series);
+}
+// Windy-like colour ramps
+function windColor(v){              // mph → cool→hot
+  return v<5?'#eef6ff':v<9?'#cfe8ff':v<13?'#bdf0d0':v<17?'#fef08a':v<22?'#fdba74':v<28?'#f87171':'#ef4444';
+}
+function tempColor(t){              // °F text colour
+  return t>=85?'#b91c1c':t>=72?'#ea580c':t>=58?'#16a34a':t>=44?'#0891b2':t>=30?'#2563eb':'#4338ca';
+}
+function skyIcon(cloud,pop){
+  if(pop>=45)return'🌧️';
+  if(cloud<25)return'☀️';
+  if(cloud<55)return'🌤️';
+  if(cloud<85)return'⛅';
+  return'☁️';
+}
+function dirArrowCell(dir){
+  // small arrow pointing the way the wind blows TO (met dir + 180)
+  return`<svg width="16" height="16" viewBox="0 0 16 16"><g transform="rotate(${(dir+180)%360},8,8)"><line x1="8" y1="3" x2="8" y2="13" stroke="#475569" stroke-width="1.6" stroke-linecap="round"/><polygon points="8,2 5,7 11,7" fill="#475569"/></g></svg>`;
+}
+function renderForecast(series){
+  const track=document.getElementById('fc-track');
+  const fail=()=>{track.innerHTML='<div class="nb-load" style="color:#64748b">Forecast unavailable</div>';};
+  if(!series||!series.length){fail();return;}
+  const now=Date.now();
+  series=series.filter(e=>new Date(e.t).getTime()>=now-60*60*1000);   // drop hours already past
+  if(!series.length){fail();return;}
+  const days=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+  // figure out which column is "now" and where the day groups / model switches fall
+  let nowIdx=-1;
+  series.forEach((e,i)=>{if(nowIdx<0&&new Date(e.t).getTime()>=now-30*60*1000)nowIdx=i;});
+  // group consecutive hours by calendar day → [{label, count}]
+  const groups=[];
+  series.forEach(e=>{const d=new Date(e.t),key=d.toDateString();const last=groups[groups.length-1];
+    if(last&&last.key===key)last.count++;else groups.push({key,count:1,label:`${days[d.getDay()]} ${d.getDate()}`});});
+  // ── build each row ──
+  const cell=(i,inner,style)=>`<div class="fc-cell${i===nowIdx?' now':''}${series[i].model!==(series[i-1]||{}).model&&i>0?' mswitch':''}"${style?` style="${style}"`:''}>${inner}</div>`;
+  let dayRow='<div class="fc-lbl"></div>',alt=false;
+  groups.forEach(g=>{dayRow+=`<div class="fc-day${alt?' alt':''}" style="width:calc(var(--fcw) * ${g.count})">${g.label}</div>`;alt=!alt;});
+  let hrRow='<div class="fc-lbl">Hour</div>',skyRow='<div class="fc-lbl">Sky</div>',tempRow='<div class="fc-lbl">Temp °F</div>',
+      rainRow='<div class="fc-lbl">Rain %</div>',windRow='<div class="fc-lbl">Wind</div>',gustRow='<div class="fc-lbl">Gusts</div>',
+      dirRow='<div class="fc-lbl">Wind dir</div>',flyRow='<div class="fc-lbl">Fly</div>';
+  series.forEach((e,i)=>{
+    const d=new Date(e.t),hr=d.getHours();
+    const ap=hr===0?'12a':hr<12?hr+'a':hr===12?'12p':(hr-12)+'p';
+    const fs=flyS(e.wind,e.gust,e.cloud,e.temp,hr);
+    const dc={flyable:'#22c55e',caution:'#facc15',no:'#ef4444'}[fs];
+    hrRow+=cell(i,i===nowIdx?'Now':ap);
+    skyRow+=cell(i,skyIcon(e.cloud,e.pop));
+    tempRow+=cell(i,`${e.temp}°`,`color:${tempColor(e.temp)}`);
+    rainRow+=cell(i,e.pop>=10?e.pop:'');
+    windRow+=cell(i,e.wind,`background:${windColor(e.wind)}`);
+    gustRow+=cell(i,e.gust,`background:${windColor(e.gust)}`);
+    dirRow+=cell(i,dirArrowCell(e.dir));
+    flyRow+=cell(i,'',`background:${dc}`);
+  });
+  track.innerHTML=
+    `<div class="fc-row fc-r-day">${dayRow}</div>`+
+    `<div class="fc-row fc-r-hr">${hrRow}</div>`+
+    `<div class="fc-row fc-r-sky">${skyRow}</div>`+
+    `<div class="fc-row fc-r-temp">${tempRow}</div>`+
+    `<div class="fc-row fc-r-rain">${rainRow}</div>`+
+    `<div class="fc-row fc-r-wind">${windRow}</div>`+
+    `<div class="fc-row fc-r-gust">${gustRow}</div>`+
+    `<div class="fc-row fc-r-dir">${dirRow}</div>`+
+    `<div class="fc-row fc-r-fly">${flyRow}</div>`;
+}
+
+// ── Controls ──────────────────────────────────────────────────────────────────
+function setPitch(p){if(useMapLibre&&mlMap)mlMap.easeTo({pitch:p,duration:600});}
+// 2D ⇄ 3D toggle (replaces the old 2D/45°/70° preset buttons).
+function togglePitch(){
+  const b=document.getElementById('b2d');
+  const flat=!b.classList.contains('active');           // not currently 2D → go flat
+  if(useMapLibre&&mlMap)mlMap.easeTo({pitch:flat?0:60,duration:600});
+  b.classList.toggle('active',flat);
+  b.textContent=flat?'3D':'2D';
+}
+function resetNorth(){if(useMapLibre&&mlMap)mlMap.resetNorth();else if(lfMap)lfMap.setBearing&&lfMap.setBearing(0);}
+// Compass: rotate the needle to show where geographic north is as the map turns.
+function updateCompass(){const n=document.getElementById('compass-needle');if(!n||!useMapLibre||!mlMap)return;n.style.transform=`rotate(${-mlMap.getBearing()}deg)`;}
+// Geolocation — drops a single clickable blue pin at your location and recenters.
+let myLocMarker=null, lastGeo=null, geoAsked=false;
+function bluePinSVG(){return`<svg width="30" height="40" viewBox="0 0 30 40" xmlns="http://www.w3.org/2000/svg"><path d="M15 1C8 1 3 6 3 13c0 9 12 25 12 25S27 22 27 13C27 6 22 1 15 1z" fill="#2563eb" stroke="#fff" stroke-width="2.5"/><circle cx="15" cy="13" r="4.5" fill="#fff"/></svg>`;}
+// Place the pin + zoom in quickly. fast=true uses a snappier fly for the on-open jump.
+function placeMyLoc(lat,lon,fast){
+  const popHTML=`<div class="pp"><div class="ppn">📍 My location</div><div class="pps">${lat.toFixed(5)}, ${lon.toFixed(5)}</div></div>`;
+  if(useMapLibre&&mlMap){
+    if(myLocMarker){try{myLocMarker.remove();}catch(e){}}
+    const el=document.createElement('div');el.style.cursor='pointer';el.innerHTML=bluePinSVG();
+    el.addEventListener('click',e=>{stopEvt(e);showPopup(lat,lon,popHTML);});
+    myLocMarker=new maplibregl.Marker({element:el,anchor:'bottom'}).setLngLat([lon,lat]).addTo(mlMap);
+    mlMap.flyTo({center:[lon,lat],zoom:13.5,bearing:0,pitch:45,duration:fast?1100:700,speed:1.6,curve:1.5,essential:true});
+  }else if(lfMap){
+    if(myLocMarker){try{lfMap.removeLayer(myLocMarker);}catch(e){}}
+    const icon=L.divIcon({html:bluePinSVG(),iconSize:[30,40],iconAnchor:[15,38],className:''});
+    myLocMarker=L.marker([lat,lon],{icon}).addTo(lfMap).on('click',()=>showPopup(lat,lon,popHTML));
+    lfMap.setView([lat,lon],13);
+  }
+}
+// Only ever PROMPTS once per session; after that reuse the cached fix (no repeat prompts).
+function goToMyLocation(fast,force){
+  if(lastGeo){placeMyLoc(lastGeo.lat,lastGeo.lon,fast);return;}
+  if((geoAsked&&!force)||!navigator.geolocation)return;   // auto path asks once; the button may force a retry
+  geoAsked=true;
+  navigator.geolocation.getCurrentPosition(
+    p=>{lastGeo={lat:p.coords.latitude,lon:p.coords.longitude};placeMyLoc(lastGeo.lat,lastGeo.lon,fast);},
+    ()=>{},{enableHighAccuracy:true,timeout:8000,maximumAge:600000});
+}
+// Apple Maps on Apple devices, Google Maps elsewhere.
+function directionsURL(lat,lon){
+  const apple=/iPhone|iPad|iPod|Macintosh/.test(navigator.userAgent||'');
+  return apple?`https://maps.apple.com/?daddr=${lat},${lon}&dirflg=d`:`https://www.google.com/maps/dir/?api=1&destination=${lat},${lon}`;
+}
+let exagOn=true;
+let glideOn=false;                                 // Best-glide feature: off until toggled on
+function toggleGlide(){
+  glideOn=!glideOn;
+  const b=document.getElementById('glidebtn');
+  if(b){b.classList.toggle('active',glideOn);b.textContent=`◹ Best glide: ${glideOn?'on':'off'}`;}
+  const chk=document.getElementById('pp-glide-chk');if(chk)chk.checked=glideOn;   // keep popup toggle in sync
+  if(!glideOn){
+    clearGlide();
+    const gb=document.getElementById('glide-box');if(gb)gb.innerHTML=glideOffHTML();
+  }else if(currentLaunchId){
+    const s=LAUNCHES.find(x=>x.id===currentLaunchId);if(s)runGlide(s);
+  }
+}
+// Compute + draw the glide footprint for a launch (used on click and on toggle-on).
+async function runGlide(site){
+  const w=siteWx[site.id];
+  const gb=document.getElementById('glide-box');if(gb)gb.innerHTML=glideHTML(site,w,BASE_RATIO,terrainCache[site.id]?true:false);
+  drawSector(site,w,BASE_RATIO);             // immediate (cached footprint, or coarse arc)
+  await sampleTerrain(site);                 // batched elevation (cached after first time)
+  if(currentLaunchId!==site.id||!glideOn)return;
+  drawSector(site,w,BASE_RATIO);             // redraw with real terrain footprint
+  const gb2=document.getElementById('glide-box');if(gb2)gb2.innerHTML=glideHTML(site,w,BASE_RATIO,true);
+}
+const DARK_KEY='updraft_dark_v1';
+function applyDark(on){document.body.classList.toggle('dark',on);const b=document.getElementById('dark-btn');if(b){b.textContent=on?'☀️ Light mode':'🌙 Dark mode';b.classList.toggle('active',on);}}
+function toggleDark(){const on=!document.body.classList.contains('dark');applyDark(on);try{localStorage.setItem(DARK_KEY,on?'1':'0');}catch(e){}}
+function toggleExag(){exagOn=!exagOn;if(useMapLibre&&mlMap){try{mlMap.setTerrain({source:'terrain',exaggeration:exagOn?1.5:1});}catch(e){}}document.getElementById('exbtn').textContent=`⛰ Exaggeration ${exagOn?'1.5×':'1×'}`;document.getElementById('exbtn').classList.toggle('active',exagOn);}
+
+// ── Marker elements ───────────────────────────────────────────────────────────
+function mkLaunchSVG(col,ar){return`<svg width="36" height="46" viewBox="0 0 36 46" xmlns="http://www.w3.org/2000/svg"><path d="M18 2C11 2 5 8 5 15c0 10 13 29 13 29S31 25 31 15C31 8 25 2 18 2z" fill="${col}" stroke="white" stroke-width="2.5"/><circle cx="18" cy="15" r="9" fill="rgba(0,0,0,.18)"/><g transform="rotate(${ar},18,15)"><polygon points="18,7 15,17 18,14 21,17" fill="white" opacity=".95"/><line x1="18" y1="14" x2="18" y2="22" stroke="white" stroke-width="2" stroke-linecap="round"/></g></svg>`;}
+function mkLZSVG(gold){return`<svg width="36" height="22" viewBox="0 0 36 22" xmlns="http://www.w3.org/2000/svg" style="filter:drop-shadow(0 0 1.5px rgba(0,0,0,.9));"><rect x="2.5" y="2.5" width="31" height="17" rx="5" fill="${gold?'#d97706':'#3b82f6'}" stroke="${gold?'#fde047':'#ffffff'}" stroke-width="3.5" paint-order="stroke"/><text x="18" y="15" text-anchor="middle" font-size="9" fill="white" font-weight="800" font-family="Arial,sans-serif">LZ</text></svg>`;}
+
+// ── Click handler ─────────────────────────────────────────────────────────────
+async function onLaunchClick(site,e){
+  stopEvt(e);
+  clearGlide();clearZones();currentEditLZ=null;
+  currentLaunchId=site.id;
+  const w=siteWx[site.id];
+  renderNow(w||slcWx,site.name);             // top weather bar follows the clicked site
+  showPopup(site.lat,site.lon,launchPop(site,w,terrainCache[site.id]?true:false,BASE_RATIO));
+  wireLaunchEditor(site);
+  mountThumb(site,site.facing);
+  if(glideOn)await runGlide(site);           // glide footprint only when the feature is on
+}
+function onLZClick(lz,e){
+  stopEvt(e);
+  currentLaunchId=null;currentEditLZ=lz.id;
+  const w=siteWx[lz.id],hl=activeLzHL.includes(lz.id);
+  renderNow(w||slcWx,lz.name);               // top weather bar follows the clicked LZ
+  showPopup(lz.lat,lz.lon,lzPop(lz,w,hl));
+  mountThumb(lz,null);
+  wireLZEditor(lz);
+  showLZBoundary(lz);          // draw just this LZ's boundary
+}
+
+// ── Popup helpers (works for both map engines) ────────────────────────────────
+// MapLibre markers hand us a DOM event (has stopPropagation); Leaflet hands us a
+// LeafletMouseEvent (no stopPropagation method — its DOM event is .originalEvent).
+function stopEvt(e){
+  if(!e)return;
+  if(typeof e.stopPropagation==='function')e.stopPropagation();
+  if(e.originalEvent&&typeof e.originalEvent.stopPropagation==='function')e.originalEvent.stopPropagation();
+}
+// Detail now lives in a slide-in right sidebar (keeps the flight path / glide visible).
+function showPopup(lat,lon,html){
+  destroyMini();
+  document.getElementById('sb-body').innerHTML=html;
+  document.getElementById('sidebar').classList.add('open');
+  openPopup=true;
+  // shift the map left so the clicked point isn't hidden behind the sidebar
+  if(useMapLibre&&mlMap&&lat&&lon){mlMap.easeTo({center:[lon,lat],padding:{right:330,left:0,top:0,bottom:0},duration:600});}
+  else if(lfMap&&lat&&lon){lfMap.panTo([lat,lon]);}
+}
+function updatePopup(html){const b=document.getElementById('sb-body');if(b)b.innerHTML=html;}
+function closeSidebar(){
+  document.getElementById('sidebar').classList.remove('open');
+  destroyMini();openPopup=null;clearFlight();currentEditLZ=null;currentLaunchId=null;clearZones();lockAllPins();
+  if(slcWx)renderNow(slcWx,'Salt Lake City');   // revert top weather bar to the regional default
+  if(useMapLibre&&mlMap){try{mlMap.easeTo({padding:{right:0,left:0,top:0,bottom:0},duration:400});}catch(e){}}
+}
+
+// ── MapLibre 3D map ───────────────────────────────────────────────────────────
+function initMapLibre(){
+  return new Promise((resolve,reject)=>{
+    try{
+      const m=new maplibregl.Map({
+        container:'map',
+        style:'https://tiles.openfreemap.org/styles/liberty',
+        center:[-111.5,39.8],zoom:7,pitch:45,bearing:0,maxPitch:85,antialias:true,
+      });
+      let settled=false;
+      // Resolve on 'style.load' (style ready ≈300ms) — NOT 'load', which also waits for every
+      // viewport tile to go idle and can hang on flaky vector tiles, wrongly forcing the 2D fallback.
+      const timeout=setTimeout(()=>{if(settled)return;settled=true;try{m.remove();}catch(e){}reject(new Error('timeout'));},15000);
+      m.on('style.load',()=>{
+        if(settled)return;settled=true;
+        clearTimeout(timeout);
+        // Add terrain
+        m.addSource('terrain',{type:'raster-dem',url:DEM_URL,tileSize:512});
+        try{m.setTerrain({source:'terrain',exaggeration:1.5});}catch(e){}
+        m.addLayer({id:'hillshade',type:'hillshade',source:'terrain',paint:{'hillshade-shadow-color':'rgba(40,20,5,0.4)','hillshade-exaggeration':0.5}});
+        // Base map rasters (hidden until chosen) sit BELOW hillshade so terrain shading drapes them.
+        m.addSource('sat',{type:'raster',tiles:[TILES.sat],tileSize:256,attribution:'Imagery © Esri'});
+        m.addLayer({id:'sat',type:'raster',source:'sat',layout:{visibility:'none'}},'hillshade');
+        m.addSource('topo',{type:'raster',tiles:[TILES.topo],tileSize:256,maxzoom:16,attribution:'USGS'});
+        m.addLayer({id:'topo',type:'raster',source:'topo',layout:{visibility:'none'}},'hillshade');
+        // VFR sectional overlay rides on top, semi-transparent.
+        m.addSource('sectional',{type:'raster',tiles:[TILES.sectional],tileSize:256,maxzoom:11,attribution:'FAA / Esri'});
+        m.addLayer({id:'sectional',type:'raster',source:'sectional',layout:{visibility:'none'},paint:{'raster-opacity':0.85}});
+        m.addControl(new maplibregl.NavigationControl({showCompass:false}),'bottom-right');
+        // Blue-dot geolocation (the native button is hidden via CSS; #geo-btn drives it).
+        geoCtrl=new maplibregl.GeolocateControl({positionOptions:{enableHighAccuracy:true},trackUserLocation:false,showUserHeading:false,fitBoundsOptions:{maxZoom:12}});
+        m.addControl(geoCtrl,'bottom-right');
+        m.on('rotate',updateCompass);m.on('pitchend',updateCompass);
+        m.on('click',e=>{if(handleEditClick(e.lngLat.lng,e.lngLat.lat))return;clearGlide();if(openPopup)closeSidebar();});
+        m.on('dblclick',e=>{if(drawingFor){e.preventDefault();finishDraw();}});
+        m.on('mousemove',e=>probeWind(e.lngLat.lat,e.lngLat.lng));
+        mlMap=m;window.mlMap=m;updateCompass();
+        // No auto-geolocate on load (avoids the location prompt every visit) — use 📍 My location.
+        resolve(m);
+      });
+      // Transient tile/sprite/DEM errors (missing "gate" icon, rate-limited tiles) are NOT fatal —
+      // log them but keep the 3D map. Only no-WebGL (constructor throw) or timeout falls back to 2D.
+      m.on('error',e=>{console.warn('maplibre (non-fatal):',e&&e.error&&e.error.message);});
+    }catch(e){reject(e);}
+  });
+}
+
+// ── Leaflet 2D fallback ───────────────────────────────────────────────────────
+function initLeaflet(){
+  const m=L.map('map',{center:[39.8,-111.5],zoom:7,zoomControl:false});
+  L.control.zoom({position:'bottomright'}).addTo(m);
+  lfBaseLayers={
+    streets:L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap',maxZoom:19}),
+    sat:L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{attribution:'Imagery © Esri',maxZoom:19}),
+    topo:L.tileLayer('https://basemap.nationalmap.gov/arcgis/rest/services/USGSTopo/MapServer/tile/{z}/{y}/{x}',{attribution:'USGS',maxZoom:16})
+  };
+  lfOverlays={
+    sectional:L.tileLayer('https://tiles.arcgis.com/tiles/ssFJjBXIUyZDrSYZ/arcgis/rest/services/VFR_Sectional/MapServer/tile/{z}/{y}/{x}',{attribution:'FAA / Esri',maxZoom:11,opacity:0.85})
+  };
+  lfBaseLayers.streets.addTo(m);
+  m.on('click',e=>{if(handleEditClick(e.latlng.lng,e.latlng.lat))return;clearGlide();if(openPopup)closeSidebar();});
+  m.on('dblclick',()=>{if(drawingFor)finishDraw();});
+  m.on('mousemove',e=>probeWind(e.latlng.lat,e.latlng.lng));
+  lfMap=m;
+  document.getElementById('mode-badge').textContent='2D mode — 3D not supported in this browser';
+  // Pitch/exaggeration are meaningless without 3D — hide the whole row and drop
+  // the panel below Leaflet's own zoom control so they don't collide.
+  document.getElementById('trow').style.display='none';
+  document.getElementById('exbtn').style.display='none';
+  document.getElementById('compass').style.display='none'; // no map rotation in 2D
+  return m;
+}
+
+// ── Landing-zone store (editable, persisted) ──────────────────────────────────
+// LZs live in a localStorage-backed store seeded from ALL_LZS. Edit mode lets you
+// move pins, draw real field boundaries, add new LZs and link them to a takeoff.
+let lzStore=[], lzMarkerMap={}, lfZoneLayers=[], lfLinkLayers=[];
+let editMode=false, addingLZ=false, addingLaunch=false, drawingFor=null, drawVerts=[], currentEditLZ=null;
+let lfDraw=null, lfDrawPts=[];
+const LZ_STORE_KEY='updraft_lz_v2';   // bumped: reseeds with corrected Paragliding-Map LZ coords
+function loadLZStore(){
+  // normalize: legacy single launchId → launchIds array (multiple takeoffs per LZ)
+  const norm=z=>({...z,launchIds:z.launchIds||(z.launchId?[z.launchId]:[])});
+  try{const s=JSON.parse(localStorage.getItem(LZ_STORE_KEY));if(Array.isArray(s)&&s.length)return s.map(norm);}catch(e){}
+  return ALL_LZS.filter(z=>z.lat&&z.lon).map(z=>{const m=LAUNCHES.find(L=>'lz_'+L.id===z.id);return{id:z.id,name:z.name,sub:z.sub||'',lat:z.lat,lon:z.lon,alt:z.alt||4500,desc:z.desc||'',launchIds:m?[m.id]:[],boundary:null,custom:false};});
+}
+function saveLZStore(){try{localStorage.setItem(LZ_STORE_KEY,JSON.stringify(lzStore));}catch(e){}}
+function initLZStore(){lzStore=loadLZStore();applyConnections();}
+// A linked LZ becomes the launch's landing point used by glide + flight sim.
+function applyConnections(){LAUNCHES.forEach(L=>{const lz=lzStore.find(z=>(z.launchIds||[]).includes(L.id));if(lz){L.lzLat=lz.lat;L.lzLon=lz.lon;L.lzAlt=lz.alt;}});}
+function closeRing(r){const a=r.slice();if(a.length&&(a[0][0]!==a[a.length-1][0]||a[0][1]!==a[a.length-1][1]))a.push(a[0]);return a;}
+
+// ── Boundary polygons: manual store boundaries + real OSM park outlines ────────
+async function fetchParkPolygons(zones){
+  if(!zones.length)return [];
+  const tags=['["leisure"="park"]','["leisure"="pitch"]','["leisure"="garden"]','["leisure"="recreation_ground"]','["landuse"="recreation_ground"]'];
+  const parts=[];
+  zones.forEach(z=>tags.forEach(t=>{parts.push(`way(around:220,${z.lat},${z.lon})${t};`);parts.push(`relation(around:220,${z.lat},${z.lon})${t};`);}));
+  const q=`[out:json][timeout:60];(${parts.join('')});out geom;`;
+  const r=await fetch('https://overpass-api.de/api/interpreter',{method:'POST',body:'data='+encodeURIComponent(q)});
+  const j=await r.json();
+  const feats=[],seen=new Set();
+  (j.elements||[]).forEach(el=>{
+    const key=el.type+el.id;if(seen.has(key))return;seen.add(key);
+    const push=(geom,name)=>{const ring=geom.map(p=>[p.lon,p.lat]);if(ring.length>2)feats.push({type:'Feature',properties:{name:name||'Park',kind:'park'},geometry:{type:'Polygon',coordinates:[ring]}});};
+    if(el.type==='way'&&el.geometry)push(el.geometry,el.tags&&el.tags.name);
+    else if(el.type==='relation'&&el.members)el.members.filter(m=>m.type==='way'&&m.geometry&&(m.role==='outer'||!m.role)).forEach(m=>push(m.geometry,el.tags&&el.tags.name));
+  });
+  return feats;
+}
+function renderZones(features){
+  if(useMapLibre&&mlMap){
+    const data={type:'FeatureCollection',features};
+    if(mlMap.getSource('lz-zones')){mlMap.getSource('lz-zones').setData(data);return;}
+    mlMap.addSource('lz-zones',{type:'geojson',data});
+    mlMap.addLayer({id:'lz-zones-fill',type:'fill',source:'lz-zones',paint:{'fill-color':'#22c55e','fill-opacity':0.14}});
+    mlMap.addLayer({id:'lz-zones-line',type:'line',source:'lz-zones',paint:{'line-color':'#16a34a','line-width':2.5,'line-dasharray':[3,2]}});
+  }else if(lfMap){
+    lfZoneLayers.forEach(l=>{try{lfMap.removeLayer(l);}catch(e){}});lfZoneLayers=[];
+    const gj=L.geoJSON({type:'FeatureCollection',features},{style:{color:'#16a34a',weight:2.5,dashArray:'5,4',fillColor:'#22c55e',fillOpacity:0.14},interactive:false}).addTo(lfMap);
+    lfZoneLayers.push(gj);
+  }
+}
+let parkCache={};                                 // lzId -> boundary feature | null (cached)
+function clearZones(){renderZones([]);}
+function drawLZZones(){clearZones();}             // boundaries are shown per-click, not all at once
+function manualFeature(lz){return{type:'Feature',properties:{name:lz.name,kind:'manual'},geometry:{type:'Polygon',coordinates:[closeRing(lz.boundary)]}};}
+// Ray-casting point-in-polygon. ring = [[lon,lat],…]
+function pip(lat,lon,ring){let inside=false;for(let i=0,j=ring.length-1;i<ring.length;j=i++){const xi=ring[i][0],yi=ring[i][1],xj=ring[j][0],yj=ring[j][1];if(((yi>lat)!==(yj>lat))&&(lon<(xj-xi)*(lat-yi)/(yj-yi)+xi))inside=!inside;}return inside;}
+function ringCentroid(r){let x=0,y=0;r.forEach(p=>{x+=p[0];y+=p[1];});return[x/r.length,y/r.length];}
+function bestParkFor(lz,parks){for(const f of parks){if(pip(lz.lat,lz.lon,f.geometry.coordinates[0]))return f;}let best=null,bd=0.25;parks.forEach(f=>{const c=ringCentroid(f.geometry.coordinates[0]);const d=hav(lz.lat,lz.lon,c[1],c[0]);if(d<bd){bd=d;best=f;}});return best;}
+// Show the boundary for ONE clicked LZ: its drawn polygon, else its OSM park outline.
+async function showLZBoundary(lz){
+  if(lz.boundary&&lz.boundary.length>2){renderZones([manualFeature(lz)]);return;}
+  if(lz.id in parkCache){renderZones(parkCache[lz.id]?[parkCache[lz.id]]:[]);return;}
+  try{const parks=await fetchParkPolygons([lz]);const best=bestParkFor(lz,parks);parkCache[lz.id]=best||null;if(currentEditLZ===lz.id)renderZones(best?[best]:[]);}catch(e){}
+}
+// Background prefetch so the boundary appears instantly on click (cached, not drawn).
+async function prefetchParks(){
+  const zones=lzStore.filter(z=>z.lat&&z.lon&&!(z.boundary&&z.boundary.length>2));
+  let parks=[];try{parks=await fetchParkPolygons(zones);}catch(e){return;}
+  zones.forEach(z=>{if(!(z.id in parkCache))parkCache[z.id]=bestParkFor(z,parks)||null;});
+}
+
+// ── LZ → takeoff connector lines ──────────────────────────────────────────────
+// Connector lines removed per request; LZ→takeoff links still drive glide/flight.
+// This just clears any previously-drawn line.
+function drawConnectors(){
+  if(useMapLibre&&mlMap){try{if(mlMap.getLayer('lz-links'))mlMap.removeLayer('lz-links');if(mlMap.getSource('lz-links'))mlMap.removeSource('lz-links');}catch(e){}}
+  else if(lfMap){lfLinkLayers.forEach(l=>{try{lfMap.removeLayer(l);}catch(e){}});lfLinkLayers=[];}
+}
+
+// ── LZ markers (rebuilt on edit-toggle so they can become draggable) ──────────
+function buildLZMarkers(){
+  if(useMapLibre){Object.values(lzMarkerMap).forEach(m=>{try{m.remove();}catch(e){}});}
+  else if(lfMap){Object.values(lzMarkerMap).forEach(m=>{try{lfMap.removeLayer(m);}catch(e){}});}
+  lzMarkerMap={};lzElMap={};
+  lzStore.forEach(lz=>{
+    if(!lz.lat||!lz.lon)return;
+    if(useMapLibre&&mlMap){
+      const el=document.createElement('div');el.style.cursor='pointer';el.innerHTML=mkLZSVG(false);lzElMap[lz.id]=el;
+      const mk=new maplibregl.Marker({element:el,anchor:'center',draggable:false}).setLngLat([lz.lon,lz.lat]).addTo(mlMap);  // locked until "Move pin"
+      el.addEventListener('click',e=>onLZClick(lz,e));
+      mk.on('dragend',()=>{const ll=mk.getLngLat();lz.lon=ll.lng;lz.lat=ll.lat;applyConnections();saveLZStore();});
+      lzMarkerMap[lz.id]=mk;
+    }else if(lfMap){
+      const icon=L.divIcon({html:mkLZSVG(false),iconSize:[36,22],iconAnchor:[18,11],popupAnchor:[0,-12],className:''});
+      const mk=L.marker([lz.lat,lz.lon],{icon,draggable:false}).addTo(lfMap);  // locked until "Move pin"
+      mk.on('click',e=>onLZClick(lz,e));
+      mk.on('dragend',()=>{const ll=mk.getLatLng();lz.lat=ll.lat;lz.lon=ll.lng;applyConnections();saveLZStore();});
+      lzMarkerMap[lz.id]=mk;
+    }
+  });
+}
+
+// ── Menu (map key + LZ tools) ─────────────────────────────────────────────────
+function toggleMenu(){document.getElementById('menu-panel').classList.toggle('open');}
+// Click anywhere outside an open floating panel (other than its own toggle button) closes it.
+document.addEventListener('click',e=>{
+  const mp=document.getElementById('menu-panel');
+  if(mp&&mp.classList.contains('open')&&!mp.contains(e.target)&&!e.target.closest('#menu-btn'))mp.classList.remove('open');
+  const lp=document.getElementById('layer-panel');
+  if(lp&&lp.classList.contains('open')&&!lp.contains(e.target)&&!e.target.closest('#layers-btn'))lp.classList.remove('open');
+});
+function setBadge(t){const b=document.getElementById('mode-badge');if(b){b.textContent=t||'';b.style.opacity=t?'1':'0';}}
+function startAddLZ(){addingLZ=true;addingLaunch=false;setBadge('📍 Click the map to drop a new LZ');}
+function startAddLaunch(){addingLaunch=true;addingLZ=false;setBadge('📍 Click the map to drop a new takeoff');}
+function handleEditClick(lon,lat){
+  if(addingLaunch){addingLaunch=false;setBadge('');const site={id:'lnch_user_'+Date.now(),name:'New Takeoff',sub:'Custom',lat,lon,alt:6000,lzAlt:4500,rating:'P2',facing:270,lzLat:null,lzLon:null,desc:'User-added takeoff.',custom:true};LAUNCHES.push(site);saveCustomLaunches();createLaunchMarker(site);fetchHRRR(site.lat,site.lon).then(w=>{if(w){siteWx[site.id]={...w,status:flyS(w.wind,w.gusts,w.cloud,w.temp)};recolorMarkers();}});onLaunchClick(site);return true;}
+  if(addingLZ){addingLZ=false;setBadge('');const lz={id:'lz_user_'+Date.now(),name:'New LZ',sub:'Custom',lat,lon,alt:4500,desc:'User-added landing zone.',launchIds:[],boundary:null,custom:true};lzStore.push(lz);saveLZStore();buildLZMarkers();drawConnectors();openLZ(lz);return true;}
+  if(drawingFor){drawVerts.push([lon,lat]);updateDrawPreview();return true;}
+  return false;
+}
+function deleteLZ(lz){lzStore=lzStore.filter(z=>z!==lz);saveLZStore();buildLZMarkers();drawConnectors();drawLZZones();closeSidebar();}
+function showDrawUndo(on){const b=document.getElementById('draw-undo');if(b)b.style.display=on?'block':'none';}
+function undoDrawPoint(){if(!drawingFor)return;drawVerts.pop();updateDrawPreview();}
+function startDrawBoundary(lz){drawingFor=lz;drawVerts=lz.boundary?lz.boundary.slice():[];setBadge('✏ Click to add boundary points · double-click or “Finish” to close');const b=document.getElementById('ed-draw');if(b){b.textContent='✓ Finish boundary';b.onclick=()=>finishDraw();}showDrawUndo(true);updateDrawPreview();}
+function finishDraw(){if(!drawingFor)return;const lz=drawingFor;if(drawVerts.length>2){lz.boundary=drawVerts.slice();saveLZStore();}drawVerts=[];drawingFor=null;clearDrawPreview();setBadge('');showDrawUndo(false);drawLZZones();openLZ(lz);}
+function cancelDraw(){drawingFor=null;drawVerts=[];clearDrawPreview();showDrawUndo(false);}
+function updateDrawPreview(){
+  const line={type:'Feature',geometry:{type:'LineString',coordinates:drawVerts.length?drawVerts:[[0,0]]}};
+  const pts={type:'FeatureCollection',features:drawVerts.map(c=>({type:'Feature',geometry:{type:'Point',coordinates:c}}))};
+  if(useMapLibre&&mlMap){
+    if(mlMap.getSource('lz-draw')){mlMap.getSource('lz-draw').setData(line);mlMap.getSource('lz-draw-pts').setData(pts);}
+    else{mlMap.addSource('lz-draw',{type:'geojson',data:line});mlMap.addLayer({id:'lz-draw',type:'line',source:'lz-draw',paint:{'line-color':'#f59e0b','line-width':2.5}});mlMap.addSource('lz-draw-pts',{type:'geojson',data:pts});mlMap.addLayer({id:'lz-draw-pts',type:'circle',source:'lz-draw-pts',paint:{'circle-radius':4,'circle-color':'#f59e0b','circle-stroke-color':'#fff','circle-stroke-width':1.5}});}
+  }else if(lfMap){
+    clearDrawPreview();lfDraw=L.polyline(drawVerts.map(c=>[c[1],c[0]]),{color:'#f59e0b',weight:2.5}).addTo(lfMap);lfDrawPts=drawVerts.map(c=>L.circleMarker([c[1],c[0]],{radius:4,color:'#fff',weight:1.5,fillColor:'#f59e0b',fillOpacity:1}).addTo(lfMap));
+  }
+}
+function clearDrawPreview(){
+  if(useMapLibre&&mlMap){['lz-draw','lz-draw-pts'].forEach(id=>{try{if(mlMap.getLayer(id))mlMap.removeLayer(id);if(mlMap.getSource(id))mlMap.removeSource(id);}catch(e){}});}
+  if(lfMap){if(lfDraw){try{lfMap.removeLayer(lfDraw);}catch(e){}lfDraw=null;}(lfDrawPts||[]).forEach(p=>{try{lfMap.removeLayer(p);}catch(e){}});lfDrawPts=[];}
+}
+// LZ editor markup embedded in the LZ popup. Returns the HTML block.
+function lzEditorHTML(lz){
+  const ids=lz.launchIds||[];
+  const opts=LAUNCHES.map(L=>`<option value="${L.id}"${ids.includes(L.id)?' selected':''}>${L.name}</option>`).join('');
+  return`<details class="lzedit"><summary class="lzedit-t">✎ Edit this LZ</summary><div class="lzedit-body"><label class="edl">Name</label><input class="edi" id="ed-name" value="${(lz.name||'').replace(/"/g,'&quot;')}"/><label class="edl">Connect to takeoffs (ctrl/⌘-click for more than one)</label><select class="edi" id="ed-launch" multiple size="5">${opts}</select><label class="edl">Bio / notes</label><textarea class="edi" id="ed-desc" rows="3">${(lz.desc||'').replace(/</g,'&lt;')}</textarea><button class="edbtn" id="ed-move">✥ Move pin</button><div class="edrow"><button class="edbtn" id="ed-draw">✏ Draw boundary</button><button class="edbtn danger" id="ed-clearb">🗑 Delete boundary</button></div><button class="edbtn save" id="ed-save">💾 Save changes</button><button class="edbtn danger" id="ed-del">🗑 Delete LZ</button><div class="ppnote" style="margin-top:6px;">Drag the pin on the map to move it. Draw boundary: click points, then double-click / Finish.</div></div></details>`;
+}
+// Wire the editor controls after the popup HTML is in the DOM.
+function wireLZEditor(lz){
+  const nameEl=document.getElementById('ed-name');if(!nameEl)return;
+  currentEditLZ=lz.id;
+  // edits update the in-memory LZ live; the Save button persists them to storage.
+  nameEl.oninput=e=>{lz.name=e.target.value;};
+  document.getElementById('ed-launch').onchange=e=>{lz.launchIds=Array.from(e.target.selectedOptions).map(o=>o.value);applyConnections();drawConnectors();};
+  document.getElementById('ed-draw').onclick=()=>startDrawBoundary(lz);
+  document.getElementById('ed-clearb').onclick=()=>{lz.boundary=null;clearZones();};
+  document.getElementById('ed-del').onclick=()=>deleteLZ(lz);
+  document.getElementById('ed-desc').oninput=e=>{lz.desc=e.target.value;};
+  document.getElementById('ed-move').onclick=()=>toggleMovePin(lz);
+  document.getElementById('ed-save').onclick=e=>{saveLZStore();flashSaved(e.target);};
+}
+// Brief "Saved ✓" confirmation on a Save button.
+function flashSaved(b){if(!b)return;const t=b.textContent;b.textContent='✓ Saved';b.classList.add('saved-ok');const det=b.closest('details');setTimeout(()=>{b.textContent=t;b.classList.remove('saved-ok');if(det)det.open=false;},1000);}
+// ── Takeoff (launch) editor: collapsible dropdown in the launch popup ──────────
+function launchEditorHTML(site){
+  return`<details class="lzedit"><summary class="lzedit-t">✎ Edit this takeoff</summary><div class="lzedit-body"><label class="edl">Name</label><input class="edi" id="led-name" value="${(site.name||'').replace(/"/g,'&quot;')}"/><div class="edrow"><div style="flex:1"><label class="edl">Facing (°)</label><input class="edi" id="led-facing" type="number" min="0" max="359" value="${site.facing}"/></div><div style="flex:1"><label class="edl">Altitude (ft)</label><input class="edi" id="led-alt" type="number" value="${site.alt}"/></div></div><label class="edl">Bio / notes</label><textarea class="edi" id="led-desc" rows="3">${(site.desc||'').replace(/</g,'&lt;')}</textarea><button class="edbtn" id="led-move">✥ Move pin</button><button class="edbtn save" id="led-save">💾 Save changes</button><div class="ppnote" style="margin-top:6px;">Move pin: drag the takeoff on the map, then click lock. Facing drives the glide cone.</div></div></details>`;
+}
+function wireLaunchEditor(site){
+  const nameEl=document.getElementById('led-name');if(!nameEl)return;
+  nameEl.oninput=e=>{site.name=e.target.value;};
+  document.getElementById('led-facing').oninput=e=>{const v=parseInt(e.target.value);if(!isNaN(v))site.facing=((v%360)+360)%360;};
+  document.getElementById('led-alt').oninput=e=>{const v=parseInt(e.target.value);if(!isNaN(v))site.alt=v;};
+  document.getElementById('led-desc').oninput=e=>{site.desc=e.target.value;};
+  document.getElementById('led-move').onclick=()=>toggleMoveLaunch(site.id);
+  document.getElementById('led-save').onclick=e=>{saveLaunchPos();saveCustomLaunches();flashSaved(e.target);if(glideOn&&currentLaunchId===site.id)runGlide(site);};
+}
+// Pins are locked by default; this enables dragging for one LZ until you lock it again.
+function toggleMovePin(lz){
+  const mk=lzMarkerMap[lz.id];if(!mk)return;
+  const on=!mk.__moving;mk.__moving=on;
+  if(useMapLibre&&mk.setDraggable)mk.setDraggable(on);
+  else if(mk.dragging){on?mk.dragging.enable():mk.dragging.disable();}
+  const b=document.getElementById('ed-move');if(b){b.textContent=on?'🔓 Moving — click to lock':'✥ Move pin';b.classList.toggle('active',on);}
+  setBadge(on?'✥ Drag the LZ pin to reposition · click “lock” when done':'');
+}
+// Same as LZ move, but for a launch (takeoff) pin — moving it repositions glide origin & persists.
+function toggleMoveLaunch(sid){
+  const mk=launchMarkerMap[sid];if(!mk)return;
+  const on=!mk.__moving;mk.__moving=on;
+  if(useMapLibre&&mk.setDraggable)mk.setDraggable(on);
+  else if(mk.dragging){on?mk.dragging.enable():mk.dragging.disable();}
+  const b=document.getElementById('led-move');if(b){b.textContent=on?'🔓 Moving — click to lock':'✥ Move pin';b.classList.toggle('active',on);}
+  setBadge(on?'✥ Drag the launch pin to reposition · click “lock” when done':'');
+}
+function lockAllPins(){[...Object.values(lzMarkerMap),...Object.values(launchMarkerMap)].forEach(mk=>{mk.__moving=false;if(useMapLibre&&mk.setDraggable)mk.setDraggable(false);else if(mk.dragging)mk.dragging.disable();});setBadge('');}
+function openLZ(lz){onLZClick(lz);}
+function exportLZ(){const blob=new Blob([JSON.stringify(lzStore,null,2)],{type:'application/json'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='updraft_lzs.json';document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(url);}
+function resetLZ(){if(!confirm('Reset all LZ edits back to defaults?'))return;localStorage.removeItem(LZ_STORE_KEY);location.reload();}
+
+// ── Add markers to whatever map is active ─────────────────────────────────────
+function createLaunchMarker(site){
+  const w=siteWx[site.id];
+  const col={flyable:'#22c55e',caution:'#facc15',no:'#ef4444'}[w?.status||'caution'];
+  const ar=Math.round(w?.dir||0); // wind arrow, consistent with the SLC vane
+  const el=document.createElement('div');
+  el.style.cursor='pointer';
+  el.innerHTML=mkLaunchSVG(col,ar);
+  el.addEventListener('click',e=>onLaunchClick(site,e));
+  if(useMapLibre&&mlMap){launchElMap[site.id]=el;const mk=new maplibregl.Marker({element:el,anchor:'bottom',draggable:false}).setLngLat([site.lon,site.lat]).addTo(mlMap);mk.on('dragend',()=>{const ll=mk.getLngLat();site.lat=ll.lat;site.lon=ll.lng;applyConnections();saveLaunchPos();saveCustomLaunches();});launchMarkerMap[site.id]=mk;}
+  else if(lfMap){const icon=L.divIcon({html:mkLaunchSVG(col,ar),iconSize:[36,46],iconAnchor:[18,44],popupAnchor:[0,-44],className:''});const mk=L.marker([site.lat,site.lon],{icon,draggable:false}).addTo(lfMap).on('click',e=>onLaunchClick(site,e));mk.on('dragend',()=>{const ll=mk.getLatLng();site.lat=ll.lat;site.lon=ll.lng;applyConnections();saveLaunchPos();saveCustomLaunches();});launchElMap[site.id]=mk;launchMarkerMap[site.id]=mk;}
+}
+function addMarkers(){
+  drawLZZones();                                  // landing-field boundaries under the pins
+  LAUNCHES.forEach(createLaunchMarker);
+  buildLZMarkers();        // LZ pins from the editable store
+  drawConnectors();        // LZ → takeoff link lines
+}
+
+async function loadWeather(){
+  wxCache={};siteWx={};document.getElementById('now-bar').innerHTML=`<div class="nb-load">Loading ${MODEL_LABELS[currentModel]||currentModel}…</div>`;
+  const slc=await fetchHRRR(40.52,-111.87);if(slc){slcWx=slc;if(!currentLaunchId&&!currentEditLZ)renderNow(slc,'Salt Lake City');updateVane(slc,'SLC Wind');}
+  loadForecast();   // background: long detailed scrollable forecast (auto-switches models for range)
+  await Promise.all([...LAUNCHES,...lzStore].map(async s=>{if(!s.lat||!s.lon)return;const w=await fetchHRRR(s.lat,s.lon),eff=w||slc;if(eff)siteWx[s.id]={...eff,status:flyS(eff.wind,eff.gusts,eff.cloud,eff.temp)};}));
+  recolorMarkers();
+}
+function recolorMarkers(){
+  LAUNCHES.forEach(site=>{const ref=launchElMap[site.id];if(!ref)return;const w=siteWx[site.id];const col={flyable:'#22c55e',caution:'#facc15',no:'#ef4444'}[w?.status||'caution'];const svg=mkLaunchSVG(col,Math.round(w?.dir||0));
+    if(useMapLibre)ref.innerHTML=svg;
+    else if(ref.setIcon)ref.setIcon(L.divIcon({html:svg,iconSize:[36,46],iconAnchor:[18,44],popupAnchor:[0,-44],className:''}));
+  });
+}
+
+// ── Boot ──────────────────────────────────────────────────────────────────────
+(async()=>{
+  try{applyDark(localStorage.getItem(DARK_KEY)==='1');}catch(e){}   // restore dark-mode choice
+  loadCustomLaunches();// user-added takeoffs (localStorage) appended to LAUNCHES
+  loadLaunchPos();     // apply any persisted launch-pin moves/edits before drawing markers
+  initLZStore();       // editable LZ store (localStorage), feeds markers + connections
+  document.getElementById('mode-badge').textContent='Loading 3D map...';
+  try{
+    await initMapLibre();
+    useMapLibre=true;
+    document.getElementById('mode-badge').textContent='🏔 3D terrain active · right-drag to tilt';
+    setTimeout(()=>document.getElementById('mode-badge').style.opacity='0',4000);
+  }catch(e){
+    console.warn('MapLibre failed, using Leaflet:',e);
+    initLeaflet();   // no auto-geolocate on load — use 📍 My location
+  }
+  addMarkers();        // draw pins immediately (coloured 'caution' until weather lands)
+  loadWeather();       // background: fills the strip + recolours pins when done
+  prefetchParks();     // background: cache OSM park outlines so they show instantly on click
+  goToMyLocation(true);// ask for location ONCE on open, then zoom straight in
+})();
+</script>
+</body>
+</html>

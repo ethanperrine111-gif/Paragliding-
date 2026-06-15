@@ -1412,7 +1412,7 @@ let lpTimer=null, lpStart=null, suppressMapClick=false;
 function setupLongPress(){
   const el=document.getElementById('map');
   if(!el||el._lpBound)return; el._lpBound=true;
-  const CANCEL=14, HOLD=450;
+  const CANCEL=14, HOLD=1500;
   const clear=()=>{if(lpTimer){clearTimeout(lpTimer);lpTimer=null;}};
   el.addEventListener('touchstart',e=>{
     clear();

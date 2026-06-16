@@ -613,6 +613,8 @@ function drawSector(site,w,ratio){
   if(cache){
     rayCut=computeFootprint(site,ratio,cache,w);         // terrain-clipped reachable outline (full 360°)
     pts=rayCut.map(c=>[c.la,c.lo]);
+    // Smooth the polygon: two passes of weighted neighbour averaging to remove jagged ray edges
+    for(let pass=0;pass<2;pass++){const n=pts.length;pts=pts.map((_,i)=>{const p=pts[(i-1+n)%n],q=pts[(i+1)%n];return[(_[0]*2+p[0]+q[0])/4,(_[1]*2+p[1]+q[1])/4];});}
   }
   // Draw the footprint only once terrain is sampled (no misleading placeholder shape before then).
   if(pts){
@@ -645,7 +647,7 @@ function drawSector(site,w,ratio){
 }
 
 // ── Terrain sampling (batched open-meteo elevation, cached per site) ───────────
-const RAYS=72, RAY_STEP=0.15; // 72 rays = every 5°; 0.15mi step catches narrower ridges
+const RAYS=72, RAY_STEP=0.25; // 72 rays = every 5°; 0.25mi step balances resolution vs launch-slope accuracy
 const GLIDE_AIRSPEED=22;      // assumed paraglider trim airspeed (mph), used by the live-wind glide model
 async function sampleTerrain(site){
   if(terrainCache[site.id])return terrainCache[site.id];
@@ -712,7 +714,7 @@ async function sampleTerrain(site){
 // The stop point of each ray, joined together, is the reachable area.
 function computeFootprint(site,ratio,cache,w){
   const ARRIVAL=300;                                     // ft minimum arrival height above terrain
-  const ceiling=site.alt;
+  const ceiling=site.alt+150;                            // +150ft tolerance so DEM inaccuracy near launch doesn't kill rays immediately
   const floor=(site.lzAlt!=null?site.lzAlt:4500);
   const windOn=windGlideOn&&w&&w.wind>0;
   const windToDir=windOn?(w.dir+180)%360:0;             // direction wind blows TOWARD

@@ -611,7 +611,7 @@ function drawSector(site,w,ratio){
   const cache=terrainCache[site.id];
   let pts=null, rayCut=null;
   if(cache){
-    rayCut=computeFootprint(site,ratio,cache);          // terrain-clipped reachable outline (full 360°)
+    rayCut=computeFootprint(site,ratio,cache,w);         // terrain-clipped reachable outline (full 360°)
     pts=rayCut.map(c=>[c.la,c.lo]);
   }
   // Draw the footprint only once terrain is sampled (no misleading placeholder shape before then).
@@ -645,7 +645,7 @@ function drawSector(site,w,ratio){
 }
 
 // ── Terrain sampling (batched open-meteo elevation, cached per site) ───────────
-const RAYS=72, RAY_STEP=0.35; // 72 rays = every 5° around full 360° (keeps the elevation-API load light)
+const RAYS=72, RAY_STEP=0.15; // 72 rays = every 5°; 0.15mi step catches narrower ridges
 const GLIDE_AIRSPEED=22;      // assumed paraglider trim airspeed (mph), used by the live-wind glide model
 async function sampleTerrain(site){
   if(terrainCache[site.id])return terrainCache[site.id];
@@ -653,7 +653,7 @@ async function sampleTerrain(site){
   if(bar){bar.style.display='flex';}if(fill)fill.style.width='0%';
   const vert=site.alt-(site.lzAlt||4500);
   const maxMi=Math.min(34,Math.max(3,(vert*12)/5280*1.5)); // best glide (12:1) + 1.5× tailwind headroom
-  const nSteps=Math.min(64,Math.max(6,Math.ceil(maxMi/RAY_STEP)));
+  const nSteps=Math.min(150,Math.max(8,Math.ceil(maxMi/RAY_STEP)));
   const rays=[],flat=[];
   for(let r=0;r<RAYS;r++){
     const brg=(360/RAYS)*r;
@@ -710,16 +710,26 @@ async function sampleTerrain(site){
 //  • walk it outward; the glide line loses (5280 / ratio) feet of altitude per mile
 //  • stop the ray the moment that descending line drops to/below the ground (terrain)
 // The stop point of each ray, joined together, is the reachable area.
-function computeFootprint(site,ratio,cache){
-  const dropPerMi=5280/ratio;                           // ft of altitude lost per mile at this glide ratio
-  const ceiling=site.alt;                               // a sled ride only descends — you can NEVER reach ground at/above launch
-  const floor=(site.lzAlt!=null?site.lzAlt:4500);       // you land at the valley floor — can't keep gliding out across it forever
+function computeFootprint(site,ratio,cache,w){
+  const ARRIVAL=300;                                     // ft minimum arrival height above terrain
+  const ceiling=site.alt;
+  const floor=(site.lzAlt!=null?site.lzAlt:4500);
+  const windOn=windGlideOn&&w&&w.wind>0;
+  const windToDir=windOn?(w.dir+180)%360:0;             // direction wind blows TOWARD
   return cache.rays.map(ry=>{
+    // Per-ray drop rate adjusted for wind component along this bearing.
+    // Tailwind → higher ground speed → less altitude lost per mile.
+    // Headwind → lower ground speed → more altitude lost per mile.
+    let dropPerMi;
+    if(windOn){
+      const rad=((ry.brg-windToDir+360)%360)*Math.PI/180;
+      const tailwind=w.wind*Math.cos(rad);               // positive=tailwind, negative=headwind
+      const gs=Math.max(GLIDE_AIRSPEED+tailwind,4);      // ground speed (floor at 4mph)
+      dropPerMi=(GLIDE_AIRSPEED*5280)/(ratio*gs);
+    }else{
+      dropPerMi=5280/ratio;
+    }
     const S=ry.samples;
-    // Fill missing samples along this ray by linear interpolation, anchored at the launch ground
-    // (mi 0 = site.alt). This keeps a few API gaps from collapsing the ray, while interpolating
-    // ACROSS a gap toward a high ridge still rises — so it can't tunnel through high terrain.
-    // Trailing gaps with no later known sample stay null and simply stop the ray (conservative).
     const elev=new Array(S.length);
     let pMi=0,pEl=site.alt;
     for(let i=0;i<S.length;i++){
@@ -730,11 +740,11 @@ function computeFootprint(site,ratio,cache){
     let lastMi=0,lastLa=site.lat,lastLo=site.lon;
     for(let i=0;i<S.length;i++){
       const e=elev[i];
-      if(e==null)break;                                  // unknown ground (trailing gap) → stop, don't tunnel
-      if(e>=ceiling)break;                               // ground at/above launch → unreachable on a glide
-      const glideAlt=site.alt-S[i].mi*dropPerMi;         // descending glide-line altitude this far out
-      if(glideAlt<=floor)break;                          // descended to the valley/landing floor → outer glide limit (this is what makes the ratio matter)
-      if(glideAlt<=e)break;                              // glide line has sunk to the ground → stop here
+      if(e==null)break;
+      if(e>=ceiling)break;
+      const glideAlt=site.alt-S[i].mi*dropPerMi;
+      if(glideAlt<=floor)break;
+      if(glideAlt<=e+ARRIVAL)break;                      // stop 300ft above terrain, not at ground
       lastMi=S[i].mi;lastLa=S[i].la;lastLo=S[i].lo;
     }
     return{brg:ry.brg,mi:lastMi,la:lastLa,lo:lastLo};

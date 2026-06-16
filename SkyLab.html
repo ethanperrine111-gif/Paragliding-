@@ -177,6 +177,9 @@ body.probe-off #ctrl-panel{top:8px;}
 #sb-body::-webkit-scrollbar{display:none;}
 #sidebar .pp{min-width:0;max-width:none;}
 #sidebar .pp-sat{height:186px;}
+.flybtn{display:flex;align-items:center;justify-content:center;gap:6px;width:100%;margin-top:9px;background:linear-gradient(90deg,#2563eb,#3b82f6);color:#fff;border:none;border-radius:8px;padding:10px;font-size:13px;font-weight:700;cursor:pointer;box-shadow:0 2px 7px rgba(37,99,235,.4);}
+.flybtn:hover{filter:brightness(1.09);}
+.flybtn:disabled{opacity:.55;cursor:default;filter:none;}
 /* cursor-wind hint */
 .wv-probe{font-size:9px;color:#fbbf24;margin-top:3px;letter-spacing:.3px;}
 /* bottom-left control stack (Menu logo + My-location blue pin) */
@@ -300,7 +303,7 @@ body.dark .ppbio-tag{background:#422006;color:#fde68a;}
   .cbtn{padding:9px 13px;font-size:13px;border-radius:11px;}
   .icon-btn{padding:9px;}
   .edbtn{padding:9px 11px;font-size:13px;}
-  .dirbtn{padding:12px;font-size:14px;}
+  .flybtn,.dirbtn{padding:12px;font-size:14px;}
   /* Floating panels: never overflow the viewport, scroll if tall */
   #menu-panel{left:12px;right:12px;max-width:none;max-height:58vh;overflow-y:auto;}
   #layer-panel{left:auto;right:8px;top:60px;max-height:58vh;overflow-y:auto;}
@@ -477,6 +480,9 @@ const EXTRA_LZS=[
 const ALL_LZS=[...LZS,...EXTRA_LZS];
 
 let wxCache={}, siteWx={}, slcWx=null;
+let flightLayer=null, flightRAF=null, lfFlight=[], siteRatio={};
+let flightSite=null, flightPlan=null, flightRatio=null;
+const FINAL_CF=0.78;
 let useMapLibre=false, mlMap=null, lfMap=null, openPopup=null, lzElMap={};
 let currentLaunchId=null, miniMap=null;
 let lfBaseLayers={}, lfOverlays={};
@@ -519,6 +525,176 @@ function thStr(c,t,w){if(c>80)return'Weak/overcast';if(w>22)return'Rotor risk';i
 function hav(a,b,c,d){const R=3958.8,dL=(c-a)*Math.PI/180,dl=(d-b)*Math.PI/180,x=Math.sin(dL/2)**2+Math.cos(a*Math.PI/180)*Math.cos(c*Math.PI/180)*Math.sin(dl/2)**2;return R*2*Math.atan2(Math.sqrt(x),Math.sqrt(1-x));}
 function dest(lat,lon,brg,mi){const R=3958.8,d=mi/R,b=brg*Math.PI/180,la1=lat*Math.PI/180,lo1=lon*Math.PI/180,la2=Math.asin(Math.sin(la1)*Math.cos(d)+Math.cos(la1)*Math.sin(d)*Math.cos(b)),lo2=lo1+Math.atan2(Math.sin(b)*Math.sin(d)*Math.cos(la1),Math.cos(d)-Math.sin(la1)*Math.sin(la2));return[la2*180/Math.PI,lo2*180/Math.PI];}
 
+// ── Flight simulation ─────────────────────────────────────────────────────────
+async function planRoute(site,startTrue,lzTrue){
+  const A=[site.lat,site.lon],B=[site.lzLat,site.lzLon];
+  const distMi=hav(A[0],A[1],B[0],B[1]);
+  const brgAB=bearingTo(A[0],A[1],B[0],B[1]);
+  const dFinalMi=Math.min(0.45,distMi*0.22);
+  const FAF=dest(B[0],B[1],(brgAB+180)%360,dFinalMi);
+  const N=20,line=[];for(let i=0;i<=N;i++){const t=i/N;line.push([A[0]+(FAF[0]-A[0])*t,A[1]+(FAF[1]-A[1])*t]);}
+  let elevs=[];try{elevs=await getGroundElevs(line);}catch(e){}
+  const CLEAR=500*0.3048;let maxIntr=0,intrAt=0.5;
+  for(let i=Math.ceil(N*0.22);i<=N;i++){const t=i/N;const ga=startTrue+(lzTrue-startTrue)*t;const te=elevs[i];
+    if(te!=null){const intr=(te+CLEAR)-ga;if(intr>maxIntr){maxIntr=intr;intrAt=t;}}}
+  let ctrl=null;
+  if(maxIntr>0){
+    const offMi=Math.min(1.1,distMi*0.22+maxIntr/350);
+    const mid=[A[0]+(FAF[0]-A[0])*intrAt,A[1]+(FAF[1]-A[1])*intrAt];
+    const L=dest(mid[0],mid[1],(brgAB-90+360)%360,offMi),R=dest(mid[0],mid[1],(brgAB+90)%360,offMi);
+    let se=[];try{se=await getGroundElevs([L,R]);}catch(e){}
+    ctrl=((se[0]??9e9)<=(se[1]??9e9))?L:R;
+  }
+  function route(t){
+    if(t<=FINAL_CF){const u=t/FINAL_CF;
+      if(ctrl){const v=1-u;return[v*v*A[0]+2*v*u*ctrl[0]+u*u*FAF[0],v*v*A[1]+2*v*u*ctrl[1]+u*u*FAF[1]];}
+      return[A[0]+(FAF[0]-A[0])*u,A[1]+(FAF[1]-A[1])*u];}
+    const u=(t-FINAL_CF)/(1-FINAL_CF);return[FAF[0]+(B[0]-FAF[0])*u,FAF[1]+(B[1]-FAF[1])*u];
+  }
+  return{route,curved:!!ctrl};
+}
+function smoothPath(pts,passes){
+  for(let p=0;p<passes;p++){
+    const out=pts.map(o=>({...o}));
+    for(let i=1;i<pts.length-1;i++){
+      out[i]={lng:(pts[i-1].lng+2*pts[i].lng+pts[i+1].lng)/4,
+              lat:(pts[i-1].lat+2*pts[i].lat+pts[i+1].lat)/4,
+              alt:(pts[i-1].alt+2*pts[i].alt+pts[i+1].alt)/4};
+    }
+    pts=out;
+  }
+  return pts;
+}
+function buildFlightPath3(site,startR,lzR,vScale,plan,ratio){
+  const M2=1609.34;
+  const NG=120,samp=[];let prev=null,acc=0;
+  for(let i=0;i<=NG;i++){const t=i/NG;const[la,lo]=plan.route(t);if(prev)acc+=hav(prev[0],prev[1],la,lo)*M2;prev=[la,lo];samp.push({la,lo,s:acc});}
+  const spiralFloor=lzR+Math.max(28*vScale,0.05*(startR-lzR));
+  let pts=[];
+  let cut=samp.length-1,hitFloor=false;
+  for(let i=0;i<samp.length;i++){const alt=startR-(samp[i].s/ratio)*vScale;if(alt<=spiralFloor){cut=i;hitFloor=true;break;}}
+  for(let i=0;i<=cut;i++){const alt=Math.max(startR-(samp[i].s/ratio)*vScale,spiralFloor);pts.push({lng:samp[i].lo,lat:samp[i].la,alt});}
+  const last=samp[cut],entryAlt=Math.max(startR-(last.s/ratio)*vScale,spiralFloor);
+  if(!hitFloor&&entryAlt>spiralFloor+2*vScale){
+    const drop=entryAlt-spiralFloor,turns=Math.min(6,Math.max(2,drop/(50*vScale)));
+    const NS=Math.max(120,Math.round(turns*64)),R0=0.07,Rend=0.02;
+    const brg0=bearingTo(site.lzLat,site.lzLon,last.la,last.lo);
+    for(let i=1;i<=NS;i++){const t=i/NS;const ang=(brg0+t*turns*360)%360;const R=R0+(Rend-R0)*t;const[la,lo]=dest(site.lzLat,site.lzLon,ang,R);
+      pts.push({lng:lo,lat:la,alt:entryAlt+(spiralFloor-entryAlt)*t});}
+  }
+  const sp=pts[pts.length-1],NF=34;
+  for(let i=1;i<=NF;i++){const t=i/NF;const la=sp.lat+(site.lzLat-sp.lat)*t,lo=sp.lng+(site.lzLon-sp.lng)*t;
+    const e=1-Math.pow(1-t,2.0);pts.push({lng:lo,lat:la,alt:sp.alt+(lzR-sp.alt)*e});}
+  pts=smoothPath(pts,6);
+  const lift=5*vScale;
+  pts[0]={lng:site.lon,lat:site.lat,alt:startR};
+  pts[pts.length-1]={lng:site.lzLon,lat:site.lzLat,alt:lzR};
+  pts.forEach(p=>p.alt+=lift);
+  return pts;
+}
+function makeFlightLayer(){
+  return{
+    id:'flight3d',type:'custom',renderingMode:'3d',progress:0,count:0,
+    onAdd(map,gl){
+      this.map=map;
+      const vs=`uniform mat4 u_matrix;attribute vec3 a_pos;uniform float u_size;void main(){gl_Position=u_matrix*vec4(a_pos,1.0);gl_PointSize=u_size;}`;
+      const fs=`precision mediump float;uniform vec4 u_color;uniform float u_round;void main(){if(u_round>0.5){vec2 c=gl_PointCoord-vec2(0.5);if(dot(c,c)>0.25)discard;}gl_FragColor=u_color;}`;
+      const mk=(t,s)=>{const x=gl.createShader(t);gl.shaderSource(x,s);gl.compileShader(x);return x;};
+      this.p=gl.createProgram();gl.attachShader(this.p,mk(gl.VERTEX_SHADER,vs));gl.attachShader(this.p,mk(gl.FRAGMENT_SHADER,fs));gl.linkProgram(this.p);
+      this.aPos=gl.getAttribLocation(this.p,'a_pos');this.uMat=gl.getUniformLocation(this.p,'u_matrix');this.uCol=gl.getUniformLocation(this.p,'u_color');this.uSize=gl.getUniformLocation(this.p,'u_size');this.uRound=gl.getUniformLocation(this.p,'u_round');
+      this.buf=gl.createBuffer();
+    },
+    setData(verts){const gl=this.map.painter.context.gl;this.count=verts.length/3;gl.bindBuffer(gl.ARRAY_BUFFER,this.buf);gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(verts),gl.STATIC_DRAW);},
+    render(gl,matrix){
+      if(!this.count)return;
+      gl.useProgram(this.p);
+      const rawMat=matrix&&matrix.defaultProjectionData?matrix.defaultProjectionData.mainMatrix:matrix;
+      gl.uniformMatrix4fv(this.uMat,false,rawMat instanceof Float32Array?rawMat:new Float32Array(rawMat));
+      gl.bindBuffer(gl.ARRAY_BUFFER,this.buf);gl.enableVertexAttribArray(this.aPos);gl.vertexAttribPointer(this.aPos,3,gl.FLOAT,false,0,0);
+      gl.disable(gl.DEPTH_TEST);
+      gl.enable(gl.BLEND);gl.blendFunc(gl.SRC_ALPHA,gl.ONE_MINUS_SRC_ALPHA);
+      const n=Math.max(2,Math.floor(this.count*this.progress));
+      gl.uniform1f(this.uRound,0.0);
+      gl.uniform4f(this.uCol,0.20,0.50,0.98,0.40);gl.drawArrays(gl.LINE_STRIP,0,this.count);
+      gl.uniform4f(this.uCol,0.10,0.40,1.0,1.0);gl.drawArrays(gl.LINE_STRIP,0,n);
+      gl.uniform1f(this.uRound,1.0);
+      gl.uniform1f(this.uSize,6.0);gl.uniform4f(this.uCol,0.35,0.65,1.0,0.95);gl.drawArrays(gl.POINTS,0,n);
+      gl.uniform1f(this.uSize,15.0);gl.uniform4f(this.uCol,1.0,0.80,0.12,1.0);gl.drawArrays(gl.POINTS,Math.max(0,n-1),1);
+    }
+  };
+}
+function reprojectFlight(){
+  if(!flightLayer||!flightSite||!flightPlan||!useMapLibre||!mlMap)return;
+  if(flightLayer.progress<1)return;
+  const site=flightSite;
+  let startR=mlMap.queryTerrainElevation([site.lon,site.lat]);
+  let lzR=mlMap.queryTerrainElevation([site.lzLon,site.lzLat]);
+  if(startR==null||lzR==null)return;
+  const trueRelief=Math.max(30,(site.alt-(site.lzAlt||4500))*M);
+  let vScale=(startR-lzR)/trueRelief;if(!isFinite(vScale)||vScale<=0)vScale=1;
+  const path=buildFlightPath3(site,startR,lzR,vScale,flightPlan,flightRatio);
+  const verts=[];path.forEach(p=>{const mc=maplibregl.MercatorCoordinate.fromLngLat([p.lng,p.lat],p.alt);verts.push(mc.x,mc.y,mc.z);});
+  flightLayer.setData(verts);
+  mlMap.triggerRepaint();
+}
+function clearFlight(){
+  if(flightRAF){cancelAnimationFrame(flightRAF);flightRAF=null;}
+  flightSite=null;flightPlan=null;flightRatio=null;
+  if(useMapLibre&&mlMap){try{if(mlMap.getLayer('flight3d'))mlMap.removeLayer('flight3d');}catch(e){}flightLayer=null;}
+  if(lfMap){lfFlight.forEach(l=>{try{lfMap.removeLayer(l);}catch(e){}});lfFlight=[];}
+}
+async function simulateFlight(sid){
+  const site=LAUNCHES.find(s=>s.id===sid);if(!site||site.lzLat==null)return;
+  clearFlight();
+  stashSidebar();
+  const btn=document.getElementById('flybtn-'+sid);if(btn){btn.disabled=true;btn.textContent='🪂 Flying…';}
+  const plan=await planRoute(site,site.alt*M,(site.lzAlt||4500)*M);
+  const ratio=siteRatio[sid]||8;
+  if(useMapLibre&&mlMap){
+    const brg=(bearingTo(site.lat,site.lon,site.lzLat,site.lzLon)+180+62)%360;
+    const isMob=window.innerWidth<=768;
+    const fpad=isMob?{top:80,bottom:110,left:36,right:36}:{top:70,bottom:70,left:60,right:330};
+    const fbnds=new maplibregl.LngLatBounds([site.lon,site.lat],[site.lon,site.lat]).extend([site.lzLon,site.lzLat]);
+    let fcam=null;try{fcam=mlMap.cameraForBounds(fbnds,{bearing:brg,padding:fpad,maxZoom:14.6});}catch(e){}
+    const fcenter=(fcam&&fcam.center)?fcam.center:[(site.lon+site.lzLon)/2,(site.lat+site.lzLat)/2];
+    const fzoom=(fcam&&isFinite(fcam.zoom))?Math.max(9.5,fcam.zoom-0.5):14.4;
+    mlMap.easeTo({center:fcenter,zoom:fzoom,pitch:76,bearing:brg,duration:900});
+    await new Promise(r=>{let done=false;const fin=()=>{if(!done){done=true;r();}};mlMap.once('idle',fin);setTimeout(fin,2600);});
+    let startR=null,lzR=null;
+    for(let tries=0;tries<8;tries++){
+      startR=mlMap.queryTerrainElevation([site.lon,site.lat]);
+      lzR=mlMap.queryTerrainElevation([site.lzLon,site.lzLat]);
+      if(startR!=null&&lzR!=null)break;
+      await new Promise(r=>setTimeout(r,180));
+    }
+    if(startR==null||lzR==null){const ex=(exagOn?1.5:1);startR=site.alt*M*ex;lzR=(site.lzAlt||4500)*M*ex;}
+    const trueRelief=Math.max(30,(site.alt-(site.lzAlt||4500))*M);
+    let vScale=(startR-lzR)/trueRelief;if(!isFinite(vScale)||vScale<=0)vScale=1;
+    const path=buildFlightPath3(site,startR,lzR,vScale,plan,ratio);
+    const verts=[];path.forEach(p=>{const mc=maplibregl.MercatorCoordinate.fromLngLat([p.lng,p.lat],p.alt);verts.push(mc.x,mc.y,mc.z);});
+    flightSite=site;flightPlan=plan;flightRatio=ratio;
+    flightLayer=makeFlightLayer();
+    mlMap.addLayer(flightLayer);
+    flightLayer.setData(verts);
+    flightLayer.progress=0;
+    const t0=performance.now(),DUR=8000;
+    const step=now=>{const e=Math.min(1,(now-t0)/DUR);flightLayer.progress=e;mlMap.triggerRepaint();if(e<1)flightRAF=requestAnimationFrame(step);else if(btn){btn.disabled=false;btn.textContent='🪂 Replay flight → LZ';}};
+    flightRAF=requestAnimationFrame(step);
+  }else if(lfMap){
+    const path=buildFlightPath3(site,site.alt*M,(site.lzAlt||4500)*M,1,plan,ratio);
+    const latlngs=path.map(p=>[p.lat,p.lng]);
+    const full=L.polyline(latlngs,{color:'#3b82f6',weight:2,opacity:0.4}).addTo(lfMap);
+    const flown=L.polyline([],{color:'#2563eb',weight:3}).addTo(lfMap);
+    const dot=L.circleMarker(latlngs[0],{radius:6,color:'#d97706',fillColor:'#fbbf24',fillOpacity:1,weight:2}).addTo(lfMap);
+    lfFlight.push(full,flown,dot);
+    try{const lb=L.latLngBounds(latlngs);if(lb.isValid())lfMap.fitBounds(lb,{padding:[30,30],maxZoom:15});}catch(e){}
+    const t0=performance.now(),DUR=7000;
+    const step=now=>{const e=Math.min(1,(now-t0)/DUR);const n=Math.max(1,Math.floor(latlngs.length*e));flown.setLatLngs(latlngs.slice(0,n));dot.setLatLng(latlngs[n-1]);if(e<1)flightRAF=requestAnimationFrame(step);else if(btn){btn.disabled=false;btn.textContent='🪂 Replay flight → LZ';}};
+    flightRAF=requestAnimationFrame(step);
+  }
+}
+function clearAll(){clearFlight();}
+
 // ── Popup HTML ────────────────────────────────────────────────────────────────
 function bdg(s){const m={flyable:['#d1fae5','#065f46','✓ Flyable now'],caution:['#fef3c7','#92400e','⚠ Use caution'],no:['#fee2e2','#991b1b','✗ No fly']}[s]||['#f3f4f6','#374151','— Loading'];return`<span class="ppb" style="background:${m[0]};color:${m[1]};">${m[2]}</span>`;}
 function wxG(w){if(!w)return`<div class="ppg"><div class="ppc"><div class="ppcl">Wind</div><div class="ppcv">Loading...</div></div><div class="ppc"><div class="ppcl">Gusts</div><div class="ppcv">—</div></div><div class="ppc"><div class="ppcl">Direction</div><div class="ppcv">—</div></div><div class="ppc"><div class="ppcl">Temp</div><div class="ppcv">—</div></div><div class="ppc"><div class="ppcl">Clouds</div><div class="ppcv">—</div></div><div class="ppc"><div class="ppcl">Thermals</div><div class="ppcv">—</div></div></div>`;return`<div class="ppg"><div class="ppc"><div class="ppcl">Wind</div><div class="ppcv">${w.wind} mph</div></div><div class="ppc"><div class="ppcl">Gusts</div><div class="ppcv">${w.gusts} mph</div></div><div class="ppc"><div class="ppcl">Direction</div><div class="ppcv">${d2c(w.dir)} (${w.dir}°)</div></div><div class="ppc"><div class="ppcl">Temp</div><div class="ppcv">${w.temp}°F</div></div><div class="ppc"><div class="ppcl">Clouds</div><div class="ppcv">${w.cloud}%</div></div><div class="ppc"><div class="ppcl">Thermals</div><div class="ppcv" style="font-size:10px;">${thStr(w.cloud,w.temp,w.wind)}</div></div></div>`;}
@@ -526,7 +702,8 @@ function launchPop(site,w){
   const s=w?flyS(w.wind,w.gusts,w.cloud,w.temp):'caution';
   const dir=`<a class="dirbtn" href="${directionsURL(site.lat,site.lon)}" target="_blank" rel="noopener">🧭 Directions to trailhead</a>`;
   const bio=site.desc?`<div class="ppbio"><div class="ppbio-h">📋 About this launch</div><p>${site.desc}</p>${site.hazards?`<div class="ppbio-hz">${site.hazards.map(h=>`<span class="ppbio-tag">⚠ ${h}</span>`).join('')}</div>`:''}</div>`:'';
-  return`<div class="pp"><div class="pp-sat" id="ppsat"></div><div class="ppn">▲ ${site.name}</div><div class="pps">${site.sub} · ${site.alt.toLocaleString()} ft · ${site.rating} · ${d2c(site.facing)}-facing</div>${bdg(s)}${wxG(w)}<div class="pp-fc-title">2-Week Forecast</div><div class="pp-fc-wrap"><div id="pp-fc-track" class="fc-track"><div class="nb-load">Loading…</div></div></div>${dir}${bio}${launchEditorHTML(site)}</div>`;
+  const flyBtn=site.lzLat!=null?`<button class="flybtn" id="flybtn-${site.id}" onclick="simulateFlight('${site.id}')">🪂 Simulate flight → LZ</button>`:'';
+  return`<div class="pp"><div class="pp-sat" id="ppsat"></div><div class="ppn">▲ ${site.name}</div><div class="pps">${site.sub} · ${site.alt.toLocaleString()} ft · ${site.rating} · ${d2c(site.facing)}-facing</div>${bdg(s)}${wxG(w)}<div class="pp-fc-title">2-Week Forecast</div><div class="pp-fc-wrap"><div id="pp-fc-track" class="fc-track"><div class="nb-load">Loading…</div></div></div>${dir}${bio}${flyBtn}${launchEditorHTML(site)}</div>`;
 }
 function lzPop(site,w){
   const lzBio=site.lzBio||site.desc||'';
@@ -964,7 +1141,7 @@ function clearAdhoc(){
   if(!adhocId)return;
   const mk=launchMarkerMap[adhocId];
   if(mk){try{useMapLibre?mk.remove():lfMap.removeLayer(mk);}catch(e){}}
-  delete launchMarkerMap[adhocId];delete launchElMap[adhocId];delete siteWx[adhocId];
+  delete launchMarkerMap[adhocId];delete launchElMap[adhocId];delete siteWx[adhocId];delete siteRatio[adhocId];
   const i=LAUNCHES.findIndex(s=>s.id===adhocId);if(i>=0)LAUNCHES.splice(i,1);
   adhocId=null;
 }
@@ -1032,6 +1209,7 @@ function onLaunchClick(site,e){
 function onLZClick(lz,e){
   stopEvt(e);
   currentLaunchId=null;currentEditLZ=lz.id;
+  clearFlight();
   const w=siteWx[lz.id];
   setForecastSite(lz.lat,lz.lon,lz.name);    // forecast bar follows the clicked LZ
   showPopup(lz.lat,lz.lon,lzPop(lz,w));
@@ -1078,7 +1256,7 @@ function closeSidebar(){
   document.getElementById('sidebar').classList.remove('open');
   document.body.classList.remove('popup-open');
   const r=document.getElementById('sb-reopen');if(r)r.style.display='none';
-  destroyMini();openPopup=null;currentEditLZ=null;currentLaunchId=null;clearZones();lockAllPins();
+  destroyMini();openPopup=null;clearFlight();currentEditLZ=null;currentLaunchId=null;clearZones();lockAllPins();
   setForecastSite(40.52,-111.87,'Salt Lake City');   // revert forecast bar to the regional default
   if(useMapLibre&&mlMap){try{mlMap.easeTo({padding:{right:0,left:0,top:0,bottom:0},duration:400});}catch(e){}}
 }
@@ -1119,7 +1297,7 @@ function initMapLibre(){
         geoCtrl=new maplibregl.GeolocateControl({positionOptions:{enableHighAccuracy:true},trackUserLocation:false,showUserHeading:false,fitBoundsOptions:{maxZoom:12}});
         m.addControl(geoCtrl,'bottom-right');
         m.on('rotate',updateCompass);m.on('pitchend',updateCompass);
-        m.on('move',cullGhostMarkers);m.on('idle',cullGhostMarkers);
+        m.on('move',cullGhostMarkers);m.on('idle',cullGhostMarkers);m.on('idle',reprojectFlight);
         m.on('click',e=>{if(suppressMapClick){suppressMapClick=false;return;}if(handleEditClick(e.lngLat.lng,e.lngLat.lat))return;showFlyPrompt(e.lngLat.lat,e.lngLat.lng);});
         m.on('dblclick',e=>{if(drawingFor){e.preventDefault();finishDraw();}});
         m.on('mousemove',e=>probeWind(e.lngLat.lat,e.lngLat.lng));

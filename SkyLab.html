@@ -120,7 +120,8 @@ body.probe-off #ctrl-panel{top:8px;}
 .pp-fc-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:thin;border-radius:8px;border:1px solid #e2e8f0;background:#fff;--fcw:38px;--fcl:50px;margin-bottom:7px;}
 .pp-fc-wrap::-webkit-scrollbar{height:5px;}
 .pp-fc-wrap::-webkit-scrollbar-thumb{background:rgba(0,0,0,.18);border-radius:3px;}
-@media(min-width:769px){.ppg{display:none;}.pp-fc-title{display:none;}.pp-fc-wrap{display:none;}}
+.ppg{display:none;}
+@media(min-width:769px){.pp-fc-title{display:none;}.pp-fc-wrap{display:none;}}
 @media(max-width:768px){body.popup-open #forecast{display:none;}body.popup-open #fc-head{display:none;}}
 .ppbio{margin-top:10px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:9px 11px;font-size:12.5px;color:#334155;line-height:1.55;}
 .ppbio-h{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.4px;color:#64748b;margin-bottom:5px;display:flex;align-items:center;gap:5px;}
@@ -180,7 +181,8 @@ body.probe-off #ctrl-panel{top:8px;}
 #sb-close:hover{background:rgba(0,0,0,.6);}
 /* Mobile-only pill to bring the detail panel back after it's stashed to reveal the map */
 #sb-reopen{position:absolute;top:10px;right:10px;z-index:701;display:none;align-items:center;gap:6px;background:rgba(37,99,235,.96);color:#fff;border:none;border-radius:18px;padding:9px 14px;font-size:13px;font-weight:700;box-shadow:0 2px 10px rgba(0,0,0,.35);cursor:pointer;backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);}
-#sb-body{padding:13px;height:100%;overflow-y:auto;-webkit-overflow-scrolling:touch;}
+#sb-body{padding:13px;height:100%;overflow-y:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;}
+#sb-body::-webkit-scrollbar{display:none;}
 #sidebar .pp{min-width:0;max-width:none;}
 #sidebar .pp-sat{height:186px;}
 .flybtn{display:flex;align-items:center;justify-content:center;gap:6px;width:100%;margin-top:9px;background:linear-gradient(90deg,#2563eb,#3b82f6);color:#fff;border:none;border-radius:8px;padding:10px;font-size:13px;font-weight:700;cursor:pointer;box-shadow:0 2px 7px rgba(37,99,235,.4);}

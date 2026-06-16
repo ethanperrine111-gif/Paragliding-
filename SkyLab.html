@@ -117,7 +117,7 @@ body.probe-off #ctrl-panel{top:8px;}
 .ppreach{background:#fefce8;border:1px solid #fde047;border-radius:7px;padding:5px 9px;font-size:11px;color:#713f12;margin-bottom:6px;font-weight:600;}
 .ppnote{font-size:10px;color:#aaa;margin-top:5px;line-height:1.4;}
 .pp-fc-title{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:#64748b;margin:8px 0 2px;}
-.pp-fc-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:thin;border-radius:8px;border:1px solid #e2e8f0;background:#fff;--fcw:38px;--fcl:50px;margin-bottom:7px;}
+.pp-fc-wrap{overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch;scrollbar-width:thin;border-radius:8px;border:1px solid #e2e8f0;background:#fff;--fcw:38px;--fcl:50px;margin-bottom:7px;}
 .pp-fc-wrap::-webkit-scrollbar{height:5px;}
 .pp-fc-wrap::-webkit-scrollbar-thumb{background:rgba(0,0,0,.18);border-radius:3px;}
 .ppg{display:none;}
@@ -1111,7 +1111,7 @@ function renderNow(w,label){
 
 // ── Long scrollable forecast (auto-extends, switches models for range) ─────────
 let fcSeries=[];
-const FC_TARGET_H=10*24;   // aim for ~10 days of hours
+const FC_TARGET_H=14*24;   // aim for ~14 days of hours
 let fcTarget={lat:40.52,lon:-111.87,label:'Salt Lake City'};   // which site the forecast bar is showing
 function setForecastSite(lat,lon,label){
   fcTarget={lat,lon,label};
@@ -1244,7 +1244,7 @@ function renderForecast(series){
   // Also render the mini forecast inside the popup sidebar if it's open.
   const ppTrack=document.getElementById('pp-fc-track');
   if(ppTrack){
-    const ppS=series.slice(0,48);
+    const ppS=series.slice(0,336);
     let ppNowIdx=-1;
     ppS.forEach((e,i)=>{if(ppNowIdx<0&&new Date(e.t).getTime()>=now-30*60*1000)ppNowIdx=i;});
     const ppGroups=[];

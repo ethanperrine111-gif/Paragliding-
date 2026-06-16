@@ -121,6 +121,7 @@ body.probe-off #ctrl-panel{top:8px;}
 .pp-fc-wrap::-webkit-scrollbar{height:5px;}
 .pp-fc-wrap::-webkit-scrollbar-thumb{background:rgba(0,0,0,.18);border-radius:3px;}
 @media(min-width:769px){.ppg{display:none;}.pp-fc-title{display:none;}.pp-fc-wrap{display:none;}}
+@media(max-width:768px){body.popup-open #forecast{display:none;}body.popup-open #fc-head{display:none;}}
 .ppbio{margin-top:10px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:9px 11px;font-size:12.5px;color:#334155;line-height:1.55;}
 .ppbio-h{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.4px;color:#64748b;margin-bottom:5px;display:flex;align-items:center;gap:5px;}
 .ppbio p{margin:0 0 6px;}
@@ -1541,6 +1542,7 @@ function showPopup(lat,lon,html){
   destroyMini();
   document.getElementById('sb-body').innerHTML=html;
   document.getElementById('sidebar').classList.add('open');
+  document.body.classList.add('popup-open');
   const r=document.getElementById('sb-reopen');if(r)r.style.display='none';   // panel is open now
   openPopup=true;
   // shift the map left so the clicked point isn't hidden behind the sidebar
@@ -1550,6 +1552,7 @@ function showPopup(lat,lon,html){
 function updatePopup(html){const b=document.getElementById('sb-body');if(b)b.innerHTML=html;}
 function closeSidebar(){
   document.getElementById('sidebar').classList.remove('open');
+  document.body.classList.remove('popup-open');
   const r=document.getElementById('sb-reopen');if(r)r.style.display='none';
   destroyMini();openPopup=null;clearFlight();currentEditLZ=null;currentLaunchId=null;clearZones();lockAllPins();
   setForecastSite(40.52,-111.87,'Salt Lake City');   // revert forecast bar to the regional default

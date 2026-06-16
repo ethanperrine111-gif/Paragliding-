@@ -744,7 +744,7 @@ function computeFootprint(site,ratio,cache,w){
       if(e>=ceiling)break;
       const glideAlt=site.alt-S[i].mi*dropPerMi;
       if(glideAlt<=floor)break;
-      if(glideAlt<=e+ARRIVAL)break;                      // stop 300ft above terrain, not at ground
+      if(glideAlt<=e)break;
       lastMi=S[i].mi;lastLa=S[i].la;lastLo=S[i].lo;
     }
     return{brg:ry.brg,mi:lastMi,la:lastLa,lo:lastLo};

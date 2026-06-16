@@ -105,14 +105,6 @@ body.probe-off #ctrl-panel{top:8px;}
 .ppc{background:#f5f5f0;border-radius:5px;padding:4px 7px;}
 .ppcl{font-size:9px;color:#bbb;text-transform:uppercase;}
 .ppcv{font-size:13px;font-weight:700;color:#222;}
-.ppgl{background:#e8f5e8;border:1px solid #c8e6c8;border-radius:7px;padding:8px 10px;margin-top:5px;font-size:11px;color:#1b5e20;}
-.ppgl strong{font-size:13px;display:block;margin-bottom:3px;}
-.ppgl-loading{background:#f0f9f0;border:1px dashed #a5d6a7;border-radius:7px;padding:7px 9px;margin-top:5px;font-size:11px;color:#2e7d32;display:flex;align-items:center;gap:6px;}
-.gsr{display:flex;align-items:center;gap:7px;margin:5px 0 2px;}
-.gsr label{font-size:10px;color:#555;white-space:nowrap;}
-.gsr input{flex:1;}
-.gsr span{font-size:12px;font-weight:700;color:#1b5e20;min-width:28px;}
-.gsug{font-size:10px;color:#2e7d32;background:#f0fdf0;border-radius:5px;padding:3px 7px;margin-top:3px;}
 .pplz{background:#eff6ff;border:1px solid #bfdbfe;border-radius:7px;padding:7px 9px;margin-top:5px;font-size:11px;color:#1e40af;}
 .ppreach{background:#fefce8;border:1px solid #fde047;border-radius:7px;padding:5px 9px;font-size:11px;color:#713f12;margin-bottom:6px;font-weight:600;}
 .ppnote{font-size:10px;color:#aaa;margin-top:5px;line-height:1.4;}
@@ -185,9 +177,6 @@ body.probe-off #ctrl-panel{top:8px;}
 #sb-body::-webkit-scrollbar{display:none;}
 #sidebar .pp{min-width:0;max-width:none;}
 #sidebar .pp-sat{height:186px;}
-.flybtn{display:flex;align-items:center;justify-content:center;gap:6px;width:100%;margin-top:9px;background:linear-gradient(90deg,#2563eb,#3b82f6);color:#fff;border:none;border-radius:8px;padding:10px;font-size:13px;font-weight:700;cursor:pointer;box-shadow:0 2px 7px rgba(37,99,235,.4);}
-.flybtn:hover{filter:brightness(1.09);}
-.flybtn:disabled{opacity:.55;cursor:default;filter:none;}
 /* cursor-wind hint */
 .wv-probe{font-size:9px;color:#fbbf24;margin-top:3px;letter-spacing:.3px;}
 /* bottom-left control stack (Menu logo + My-location blue pin) */
@@ -241,14 +230,6 @@ body.probe-off #ctrl-panel{top:8px;}
 .flyprompt-btn:hover{filter:brightness(1.08);}
 .flyprompt-pop .maplibregl-popup-content,.flyprompt-pop .leaflet-popup-content-wrapper{padding:6px;border-radius:12px;}
 .flyprompt-pop .leaflet-popup-content{margin:6px;}
-/* Best-glide switch in launch popup */
-.pptgl{display:flex;align-items:center;justify-content:space-between;gap:7px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:8px 11px;margin:2px 0 6px;font-size:12px;font-weight:700;color:#1d4ed8;cursor:pointer;user-select:none;}
-.switch{position:relative;display:inline-block;width:38px;height:21px;flex-shrink:0;}
-.switch input{opacity:0;width:0;height:0;position:absolute;}
-.switch .slider{position:absolute;inset:0;background:#cbd5e1;border-radius:21px;transition:background .2s;}
-.switch .slider:before{content:"";position:absolute;height:15px;width:15px;left:3px;top:3px;background:#fff;border-radius:50%;transition:transform .2s;box-shadow:0 1px 3px rgba(0,0,0,.3);}
-.switch input:checked+.slider{background:#2563eb;}
-.switch input:checked+.slider:before{transform:translateX(17px);}
 /* Leaflet blue-dot */
 .bluedot-pulse{border-radius:50%;background:rgba(26,115,232,.25);}
 /* native geolocate button hidden — driven by #geo-btn instead */
@@ -284,7 +265,6 @@ body.dark .edi{background:#1e293b;color:#e2e8f0;border-color:#334155;}
 body.dark .lzedit{background:#111827;border-color:#334155;}
 body.dark .lzedit>summary{background:#1e293b;color:#93c5fd;}
 body.dark .pplz{background:#172033;border-color:#1e3a5f;color:#bfdbfe;}
-body.dark .ppgl,body.dark .ppgl-loading{background:#14241a;border-color:#1f3a28;color:#bbf7d0;}
 body.dark .pp-fc-wrap{background:#0f172a;border-color:#1e293b;}
 body.dark .pp-fc-title{color:#94a3b8;}
 body.dark .ppreach{background:#2a2410;border-color:#5a4a14;color:#fde68a;}
@@ -320,7 +300,7 @@ body.dark .ppbio-tag{background:#422006;color:#fde68a;}
   .cbtn{padding:9px 13px;font-size:13px;border-radius:11px;}
   .icon-btn{padding:9px;}
   .edbtn{padding:9px 11px;font-size:13px;}
-  .flybtn,.dirbtn{padding:12px;font-size:14px;}
+  .dirbtn{padding:12px;font-size:14px;}
   /* Floating panels: never overflow the viewport, scroll if tall */
   #menu-panel{left:12px;right:12px;max-width:none;max-height:58vh;overflow-y:auto;}
   #layer-panel{left:auto;right:8px;top:60px;max-height:58vh;overflow-y:auto;}
@@ -496,10 +476,9 @@ const EXTRA_LZS=[
 ];
 const ALL_LZS=[...LZS,...EXTRA_LZS];
 
-const BASE_RATIO=8, SECTOR=60;
-let wxCache={}, siteWx={}, activeLzHL=[], slcWx=null;
+let wxCache={}, siteWx={}, slcWx=null;
 let useMapLibre=false, mlMap=null, lfMap=null, openPopup=null, lzElMap={};
-let terrainCache={}, currentLaunchId=null, miniMap=null;
+let currentLaunchId=null, miniMap=null;
 let lfBaseLayers={}, lfOverlays={};
 let launchElMap={};                              // launch id -> marker DOM element (for recolour)
 let launchMarkerMap={};                          // launch id -> marker object (for drag/move)
@@ -539,218 +518,20 @@ function flyS(w,g,c,t,hour){if(isNight(hour==null?curHourLocal():hour))return'no
 function thStr(c,t,w){if(c>80)return'Weak/overcast';if(w>22)return'Rotor risk';if(t>78)return'Strong thermals';if(t>62)return'Good thermals';if(t>50)return'Light thermals';return'Minimal';}
 function hav(a,b,c,d){const R=3958.8,dL=(c-a)*Math.PI/180,dl=(d-b)*Math.PI/180,x=Math.sin(dL/2)**2+Math.cos(a*Math.PI/180)*Math.cos(c*Math.PI/180)*Math.sin(dl/2)**2;return R*2*Math.atan2(Math.sqrt(x),Math.sqrt(1-x));}
 function dest(lat,lon,brg,mi){const R=3958.8,d=mi/R,b=brg*Math.PI/180,la1=lat*Math.PI/180,lo1=lon*Math.PI/180,la2=Math.asin(Math.sin(la1)*Math.cos(d)+Math.cos(la1)*Math.sin(d)*Math.cos(b)),lo2=lo1+Math.atan2(Math.sin(b)*Math.sin(d)*Math.cos(la1),Math.cos(d)-Math.sin(la1)*Math.sin(la2));return[la2*180/Math.PI,lo2*180/Math.PI];}
-function suggestGlide(w){if(!w)return BASE_RATIO;const pen=Math.min(w.wind*0.04,1.5),bon=w.cloud<40&&w.temp>60?0.5:0;return Math.max(4,Math.min(12,Math.round((BASE_RATIO-pen+bon)*2)/2));}
 
 // ── Popup HTML ────────────────────────────────────────────────────────────────
 function bdg(s){const m={flyable:['#d1fae5','#065f46','✓ Flyable now'],caution:['#fef3c7','#92400e','⚠ Use caution'],no:['#fee2e2','#991b1b','✗ No fly']}[s]||['#f3f4f6','#374151','— Loading'];return`<span class="ppb" style="background:${m[0]};color:${m[1]};">${m[2]}</span>`;}
 function wxG(w){if(!w)return`<div class="ppg"><div class="ppc"><div class="ppcl">Wind</div><div class="ppcv">Loading...</div></div><div class="ppc"><div class="ppcl">Gusts</div><div class="ppcv">—</div></div><div class="ppc"><div class="ppcl">Direction</div><div class="ppcv">—</div></div><div class="ppc"><div class="ppcl">Temp</div><div class="ppcv">—</div></div><div class="ppc"><div class="ppcl">Clouds</div><div class="ppcv">—</div></div><div class="ppc"><div class="ppcl">Thermals</div><div class="ppcv">—</div></div></div>`;return`<div class="ppg"><div class="ppc"><div class="ppcl">Wind</div><div class="ppcv">${w.wind} mph</div></div><div class="ppc"><div class="ppcl">Gusts</div><div class="ppcv">${w.gusts} mph</div></div><div class="ppc"><div class="ppcl">Direction</div><div class="ppcv">${d2c(w.dir)} (${w.dir}°)</div></div><div class="ppc"><div class="ppcl">Temp</div><div class="ppcv">${w.temp}°F</div></div><div class="ppc"><div class="ppcl">Clouds</div><div class="ppcv">${w.cloud}%</div></div><div class="ppc"><div class="ppcl">Thermals</div><div class="ppcv" style="font-size:10px;">${thStr(w.cloud,w.temp,w.wind)}</div></div></div>`;}
-function glideReach(site,ratio){
-  // Max reachable distance (mi) for the popup readout.
-  const cache=terrainCache[site.id];
-  if(cache){const cut=computeFootprint(site,ratio,cache);return Math.max(0,...cut.map(c=>c.mi));}
-  return ((site.alt-(site.lzAlt||4500))*ratio)/5280; // pre-terrain estimate
-}
-function glideOffHTML(){return`<div class="ppgl" style="background:#f5f5f0;border-color:#e0e0d8;color:#666;"><strong style="color:#444;">Best glide: off</strong>Flip the <b>◹ Best glide</b> toggle above to map your reachable terrain &amp; in-range LZs.</div>`;}
-function glideHTML(site,w,ratio,done){
-  if(!glideOn)return glideOffHTML();
-  const sug=suggestGlide(w);
-  if(done===false)return`<div class="ppgl-loading"><span class="spin">↻</span> Sampling terrain elevations…</div>`;
-  const mi=glideReach(site,ratio);
-  const windTag=w&&w.wind?`<span style="font-weight:600;color:#15803d;">${w.wind} mph ${d2c(w.dir)}</span>`:`<span style="color:#999;">no data</span>`;
-  return`<div class="ppgl"><strong>Best glide: <span id="rng-${site.id}">${mi.toFixed(1)} mi / ${(mi*1.609).toFixed(1)} km</span></strong><div class="gsr"><label>Glide ratio:</label><input type="range" min="4" max="12" step="0.5" value="${ratio}" oninput="onSlide(event,'${site.id}')" ondblclick="resetGlide(event,'${site.id}')" title="Double-click to reset to suggested"/><span id="grv-${site.id}">${ratio}:1</span></div><div class="gsug">💡 Suggested: <strong>${sug}:1</strong>${w&&w.wind>20?' — strong winds reduce glide':' — terrain-following reach'} · double-click slider to reset</div><div style="font-size:10px;color:#388e3c;margin-top:3px;">Shaded = reachable terrain · Gold LZs = within glide</div></div>`;
-}
-function launchPop(site,w,done,ratio){
+function launchPop(site,w){
   const s=w?flyS(w.wind,w.gusts,w.cloud,w.temp):'caution';
-  const flyBtn=site.lzLat!=null?`<button class="flybtn" id="flybtn-${site.id}" onclick="simulateFlight('${site.id}')">🪂 Simulate flight → LZ</button>`:'';
   const dir=`<a class="dirbtn" href="${directionsURL(site.lat,site.lon)}" target="_blank" rel="noopener">🧭 Directions to trailhead</a>`;
-  const glideToggle=`<label class="pptgl"><span>◹ Best glide</span><span class="switch"><input type="checkbox" id="pp-glide-chk" ${glideOn?'checked':''} onchange="toggleGlide()"/><span class="slider"></span></span></label><label class="pptgl" style="margin-top:4px;"><span>💨 Wind adjustment</span><span class="switch"><input type="checkbox" id="pp-wind-chk" ${windGlideOn?'checked':''} onchange="toggleWindGlide()"/><span class="slider"></span></span></label>`;
   const bio=site.desc?`<div class="ppbio"><div class="ppbio-h">📋 About this launch</div><p>${site.desc}</p>${site.hazards?`<div class="ppbio-hz">${site.hazards.map(h=>`<span class="ppbio-tag">⚠ ${h}</span>`).join('')}</div>`:''}</div>`:'';
-  return`<div class="pp"><div class="pp-sat" id="ppsat"></div><div class="ppn">▲ ${site.name}</div><div class="pps">${site.sub} · ${site.alt.toLocaleString()} ft · ${site.rating} · ${d2c(site.facing)}-facing</div>${bdg(s)}${wxG(w)}<div class="pp-fc-title">2-Week Forecast</div><div class="pp-fc-wrap"><div id="pp-fc-track" class="fc-track"><div class="nb-load">Loading…</div></div></div>${glideToggle}<div id="glide-box">${glideHTML(site,w,ratio||BASE_RATIO,done)}</div>${flyBtn}${dir}${bio}${launchEditorHTML(site)}</div>`;
+  return`<div class="pp"><div class="pp-sat" id="ppsat"></div><div class="ppn">▲ ${site.name}</div><div class="pps">${site.sub} · ${site.alt.toLocaleString()} ft · ${site.rating} · ${d2c(site.facing)}-facing</div>${bdg(s)}${wxG(w)}<div class="pp-fc-title">2-Week Forecast</div><div class="pp-fc-wrap"><div id="pp-fc-track" class="fc-track"><div class="nb-load">Loading…</div></div></div>${dir}${bio}${launchEditorHTML(site)}</div>`;
 }
-function lzPop(site,w,hl){
+function lzPop(site,w){
   const lzBio=site.lzBio||site.desc||'';
   const bioHTML=lzBio?`<div class="ppbio"><div class="ppbio-h">📋 About this LZ</div><p>${lzBio}</p>${site.hazards?`<div class="ppbio-hz">${site.hazards.map(h=>`<span class="ppbio-tag">⚠ ${h}</span>`).join('')}</div>`:''}</div>`:'';
-  return`<div class="pp"><div class="pp-sat" id="ppsat"></div><div class="ppn">◼ ${site.name}</div><div class="pps">${site.sub} · ${site.alt.toLocaleString()} ft · Landing Zone</div>${hl?`<div class="ppreach">⭐ Within glide range</div>`:''}${wxG(w)}<div class="pp-fc-title">2-Week Forecast</div><div class="pp-fc-wrap"><div id="pp-fc-track" class="fc-track"><div class="nb-load">Loading…</div></div></div>${bioHTML}<a class="dirbtn" href="${directionsURL(site.lat,site.lon)}" target="_blank" rel="noopener">🧭 Directions to LZ</a>${lzEditorHTML(site)}</div>`;
-}
-function onSlide(evt,sid){
-  const r=parseFloat(evt.target.value),el=document.getElementById('grv-'+sid);
-  siteRatio[sid]=r;                       // remember the chosen glide ratio for the flight sim
-  if(el)el.textContent=r+':1';
-  const site=LAUNCHES.find(s=>s.id===sid);if(!site)return;
-  drawSector(site,siteWx[sid],r);
-  const rng=document.getElementById('rng-'+sid);if(rng){const mi=glideReach(site,r);rng.textContent=`${mi.toFixed(1)} mi / ${(mi*1.609).toFixed(1)} km`;}
-}
-// Double-click the slider → snap back to the weather-suggested glide ratio.
-function resetGlide(evt,sid){
-  const site=LAUNCHES.find(s=>s.id===sid);if(!site)return;
-  const w=siteWx[sid], sug=suggestGlide(w);
-  if(evt&&evt.target){evt.target.value=sug;}
-  siteRatio[sid]=sug;
-  const el=document.getElementById('grv-'+sid);if(el)el.textContent=sug+':1';
-  drawSector(site,w,sug);
-  const rng=document.getElementById('rng-'+sid);if(rng){const mi=glideReach(site,sug);rng.textContent=`${mi.toFixed(1)} mi / ${(mi*1.609).toFixed(1)} km`;}
-}
-
-// ── Glide sector ──────────────────────────────────────────────────────────────
-let lfGlideLayers=[];
-function clearGlide(){
-  activeLzHL.forEach(id=>{const el=lzElMap[id];if(el){const r=el.querySelector('rect');if(r){r.setAttribute('fill','#3b82f6');r.setAttribute('stroke','white');}}});
-  activeLzHL=[];
-  if(useMapLibre&&mlMap){
-    // Remove ALL glide layers before ANY source (a source can't be dropped while a layer still uses it).
-    ['g-sector','g-sector-ol','g-line'].forEach(id=>{try{if(mlMap.getLayer(id))mlMap.removeLayer(id);}catch(e){}});
-    ['g-sector','g-line'].forEach(id=>{try{if(mlMap.getSource(id))mlMap.removeSource(id);}catch(e){}});
-  } else if(lfMap){
-    lfGlideLayers.forEach(l=>{try{lfMap.removeLayer(l);}catch(e){}});lfGlideLayers=[];
-  }
-}
-const GLIDE_COL='#2563eb';   // neutral "glide range" blue for the reachable-area footprint
-function drawSector(site,w,ratio){
-  clearGlide();
-  const col=GLIDE_COL;
-  const cache=terrainCache[site.id];
-  let pts=null, rayCut=null;
-  if(cache){
-    rayCut=computeFootprint(site,ratio,cache,w);         // terrain-clipped reachable outline (full 360°)
-    pts=rayCut.map(c=>[c.la,c.lo]);
-    // Smooth the polygon: two passes of weighted neighbour averaging to remove jagged ray edges
-    for(let pass=0;pass<2;pass++){const n=pts.length;pts=pts.map((_,i)=>{const p=pts[(i-1+n)%n],q=pts[(i+1)%n];return[(_[0]*2+p[0]+q[0])/4,(_[1]*2+p[1]+q[1])/4];});}
-  }
-  // Draw the footprint only once terrain is sampled (no misleading placeholder shape before then).
-  if(pts){
-    try{
-      if(useMapLibre&&mlMap){
-        const coords=[...pts.map(([la,lo])=>[lo,la]),[pts[0][1],pts[0][0]]];
-        mlMap.addSource('g-sector',{type:'geojson',data:{type:'Feature',geometry:{type:'Polygon',coordinates:[coords]}}});
-        mlMap.addLayer({id:'g-sector',type:'fill',source:'g-sector',paint:{'fill-color':col,'fill-opacity':0.18}});
-        mlMap.addLayer({id:'g-sector-ol',type:'line',source:'g-sector',paint:{'line-color':col,'line-width':2,'line-dasharray':[6,3]}});
-      } else if(lfMap){
-        const poly=L.polygon(pts,{color:col,fillColor:col,fillOpacity:0.18,weight:2,dashArray:'6,4'}).addTo(lfMap);
-        lfGlideLayers.push(poly);
-      }
-    }catch(e){console.warn('drawSector',e);}
-  }
-  // Highlight reachable LZs in any direction
-  (lzStore.length?lzStore:ALL_LZS).forEach(lz=>{
-    if(!lz.lat||!lz.lon)return;
-    const dist=hav(site.lat,site.lon,lz.lat,lz.lon);
-    const dLon=(lz.lon-site.lon)*Math.PI/180,la1=site.lat*Math.PI/180,la2=lz.lat*Math.PI/180;
-    const yy=Math.sin(dLon)*Math.cos(la2),xx=Math.cos(la1)*Math.sin(la2)-Math.sin(la1)*Math.cos(la2)*Math.cos(dLon);
-    const brg=((Math.atan2(yy,xx)*180/Math.PI)+360)%360;
-    let reach;
-    if(rayCut){let bd=999;reach=0;rayCut.forEach(c=>{let d=Math.abs(((c.brg-brg+540)%360)-180);if(d<bd){bd=d;reach=c.mi;}});}
-    else reach=((site.alt-(site.lzAlt||4500))*ratio)/5280;
-    if(dist>reach+0.2)return;
-    activeLzHL.push(lz.id);
-    const el=lzElMap[lz.id];if(el){const r=el.querySelector('rect');if(r){r.setAttribute('fill','#d97706');r.setAttribute('stroke','#fde047');}}
-  });
-}
-
-// ── Terrain sampling (batched open-meteo elevation, cached per site) ───────────
-const RAYS=72, RAY_STEP=0.25; // 72 rays = every 5°; 0.25mi step balances resolution vs launch-slope accuracy
-const GLIDE_AIRSPEED=22;      // assumed paraglider trim airspeed (mph), used by the live-wind glide model
-async function sampleTerrain(site){
-  if(terrainCache[site.id])return terrainCache[site.id];
-  const bar=document.getElementById('terrain-bar'),fill=document.getElementById('tfill');
-  if(bar){bar.style.display='flex';}if(fill)fill.style.width='0%';
-  const vert=site.alt-(site.lzAlt||4500);
-  const maxMi=Math.min(34,Math.max(3,(vert*12)/5280*1.5)); // best glide (12:1) + 1.5× tailwind headroom
-  const nSteps=Math.min(150,Math.max(8,Math.ceil(maxMi/RAY_STEP)));
-  const rays=[],flat=[];
-  for(let r=0;r<RAYS;r++){
-    const brg=(360/RAYS)*r;
-    const samples=[];
-    for(let s=1;s<=nSteps;s++){const mi=s*RAY_STEP;const[la,lo]=dest(site.lat,site.lon,brg,mi);const p={mi,la,lo,elev:null};samples.push(p);flat.push(p);}
-    rays.push({brg,samples});
-  }
-  // ── PRIMARY: read elevations straight from the map's already-loaded 3D DEM ──────────────
-  // queryTerrainElevation is local (no network, no rate limits, no gaps). Self-calibrate against
-  // the known launch altitude so the map's exaggeration cancels out: k = launch_ft / value_at_launch.
-  let usedLocal=false;
-  if(useMapLibre&&mlMap&&mlMap.queryTerrainElevation){
-    // make sure the DEM tiles around the launch have loaded before reading them
-    await new Promise(res=>{let d=false;const f=()=>{if(!d){d=true;res();}};try{mlMap.once('idle',f);}catch(e){}setTimeout(f,3500);});
-    let qL=null;for(let t=0;t<6&&(qL==null||qL<=1);t++){qL=mlMap.queryTerrainElevation([site.lon,site.lat]);if(qL!=null&&qL>1)break;await new Promise(r=>setTimeout(r,250));}
-    if(qL!=null&&qL>1){
-      const k=site.alt/qL;                               // DEM units → true feet, anchored at the launch
-      let got=0;
-      for(const p of flat){const q=mlMap.queryTerrainElevation([p.lo,p.la]);if(q!=null&&q>0){p.elev=q*k;got++;}}
-      if(got>flat.length*0.5){usedLocal=true;if(fill)fill.style.width='100%';}
-      else{flat.forEach(p=>p.elev=null);}                // too sparse → discard, fall through to the API
-    }
-  }
-  // ── FALLBACK: open-meteo elevation API (only if the local DEM wasn't usable, e.g. 2D mode) ──
-  if(!usedLocal){
-    const CH=100,chunks=[];for(let i=0;i<flat.length;i+=CH)chunks.push(flat.slice(i,i+CH));
-    let done=0;
-    async function runChunk(chunk){
-      const la=chunk.map(p=>p.la.toFixed(5)).join(','),lo=chunk.map(p=>p.lo.toFixed(5)).join(',');
-      for(let attempt=0;attempt<5;attempt++){
-        try{
-          const r=await fetch(`https://api.open-meteo.com/v1/elevation?latitude=${la}&longitude=${lo}`);
-          if(!r.ok)throw new Error('http '+r.status);
-          const j=await r.json();const el=j.elevation||[];
-          let got=0;chunk.forEach((p,i)=>{if(el[i]!=null){p.elev=el[i]*3.28084;got++;}});
-          if(got>0)break;
-          throw new Error('empty');
-        }catch(e){await new Promise(res=>setTimeout(res,Math.min(2000,450*(attempt+1))));}
-      }
-      done++;if(fill)fill.style.width=`${Math.round(done/chunks.length*100)}%`;
-    }
-    let idx=0;const worker=async()=>{while(idx<chunks.length){await runChunk(chunks[idx++]);}};
-    await Promise.all(Array.from({length:Math.min(2,chunks.length)},worker));
-  }
-  if(bar)bar.style.display='none';
-  const cache={rays,maxMi};terrainCache[site.id]=cache;return cache;
-}
-// Pure: walk each ray outward; the glider altitude drops by sinkPerMi every mile.
-// Stop where that descending glide path can no longer clear the ground (terrain
-// intercept) → reachable endpoint. Gaps in elevation data carry forward the last
-// known ground height so a ray never tunnels straight through an unsampled ridge.
-// Reachable footprint, simple + robust:
-//  • cast a ray in EVERY direction (full 360°)
-//  • walk it outward; the glide line loses (5280 / ratio) feet of altitude per mile
-//  • stop the ray the moment that descending line drops to/below the ground (terrain)
-// The stop point of each ray, joined together, is the reachable area.
-function computeFootprint(site,ratio,cache,w){
-  const ARRIVAL=300;                                     // ft minimum arrival height above terrain
-  const ceiling=site.alt+150;                            // +150ft tolerance so DEM inaccuracy near launch doesn't kill rays immediately
-  const floor=(site.lzAlt!=null?site.lzAlt:4500);
-  const windOn=windGlideOn&&w&&w.wind>0;
-  const windToDir=windOn?(w.dir+180)%360:0;             // direction wind blows TOWARD
-  return cache.rays.map(ry=>{
-    // Per-ray drop rate adjusted for wind component along this bearing.
-    // Tailwind → higher ground speed → less altitude lost per mile.
-    // Headwind → lower ground speed → more altitude lost per mile.
-    let dropPerMi;
-    if(windOn){
-      const rad=((ry.brg-windToDir+360)%360)*Math.PI/180;
-      const tailwind=w.wind*Math.cos(rad);               // positive=tailwind, negative=headwind
-      const gs=Math.max(GLIDE_AIRSPEED+tailwind,4);      // ground speed (floor at 4mph)
-      dropPerMi=(GLIDE_AIRSPEED*5280)/(ratio*gs);
-    }else{
-      dropPerMi=5280/ratio;
-    }
-    const S=ry.samples;
-    const elev=new Array(S.length);
-    let pMi=0,pEl=site.alt;
-    for(let i=0;i<S.length;i++){
-      if(S[i].elev!=null){elev[i]=S[i].elev;pMi=S[i].mi;pEl=S[i].elev;continue;}
-      let j=i+1;while(j<S.length&&S[j].elev==null)j++;
-      elev[i]=(j<S.length)?pEl+(S[j].elev-pEl)*((S[i].mi-pMi)/(S[j].mi-pMi)):null;
-    }
-    let lastMi=0,lastLa=site.lat,lastLo=site.lon;
-    for(let i=0;i<S.length;i++){
-      const e=elev[i];
-      if(e==null)break;
-      if(e>=ceiling)break;
-      const glideAlt=site.alt-S[i].mi*dropPerMi;
-      if(glideAlt<=floor)break;
-      if(glideAlt<=e)break;
-      lastMi=S[i].mi;lastLa=S[i].la;lastLo=S[i].lo;
-    }
-    return{brg:ry.brg,mi:lastMi,la:lastLa,lo:lastLo};
-  });
+  return`<div class="pp"><div class="pp-sat" id="ppsat"></div><div class="ppn">◼ ${site.name}</div><div class="pps">${site.sub} · ${site.alt.toLocaleString()} ft · Landing Zone</div>${wxG(w)}<div class="pp-fc-title">2-Week Forecast</div><div class="pp-fc-wrap"><div id="pp-fc-track" class="fc-track"><div class="nb-load">Loading…</div></div></div>${bioHTML}<a class="dirbtn" href="${directionsURL(site.lat,site.lon)}" target="_blank" rel="noopener">🧭 Directions to LZ</a>${lzEditorHTML(site)}</div>`;
 }
 
 // ── 3D mini-map thumbnail (popup) ─────────────────────────────────────────────
@@ -815,228 +596,6 @@ async function getGroundElevs(coords){
     const j=await r.json();return j.elevation||[];
   }catch(e){return [];}
 }
-// Build the flight in RENDER-altitude space (metres as MapLibre's terrain reports them, via
-// queryTerrainElevation). startR/lzR are the rendered ground heights at launch & LZ so the path
-// sits on the launch and touches down on the LZ; vScale converts a true 8:1 drop into render units.
-function buildFlightPath(site,startR,lzR,vScale){
-  if(site.lzLat==null||site.lzLon==null)return null;
-  const Dm=hav(site.lat,site.lon,site.lzLat,site.lzLon)*1609.34;  // metres launch->LZ
-  const trueDrop=Dm/8;                                            // true metres lost over the glide at 8:1
-  let overR=startR-trueDrop*vScale;                               // render alt arriving over the LZ
-  if(overR<lzR+5*vScale)overR=lzR+5*vScale;                       // keep a little spiral height
-  const pts=[];
-  // glide: straight line launch -> over LZ, descending at 8:1
-  const NG=80;for(let i=0;i<=NG;i++){const t=i/NG;pts.push({lng:site.lon+(site.lzLon-site.lon)*t,lat:site.lat+(site.lzLat-site.lat)*t,alt:startR+(overR-startR)*t});}
-  // corkscrew: spiral down over the LZ, radius funnelling in toward the centre
-  const NS=210, turns=3.5, R0=0.05, brg0=bearingTo(site.lzLat,site.lzLon,site.lat,site.lon);
-  for(let i=1;i<=NS;i++){const t=i/NS;const ang=(brg0+t*turns*360)%360;const R=R0*(1-0.85*t);const[la,lo]=dest(site.lzLat,site.lzLon,ang,R);pts.push({lng:lo,lat:la,alt:overR+(lzR-overR)*t});}
-  pts.push({lng:site.lzLon,lat:site.lzLat,alt:lzR});             // touchdown at LZ centre
-  return pts;
-}
-const FINAL_CF=0.78;        // fraction of the route flown as cruise; the rest is the straight final approach
-// Plan a ground track launch→LZ. If terrain pokes through the straight glide, bow the cruise leg
-// sideways around it (toward the lower side); the last leg stays straight in line with the LZ.
-async function planRoute(site,startTrue,lzTrue){
-  const A=[site.lat,site.lon],B=[site.lzLat,site.lzLon];
-  const distMi=hav(A[0],A[1],B[0],B[1]);
-  const brgAB=bearingTo(A[0],A[1],B[0],B[1]);
-  const dFinalMi=Math.min(0.45,distMi*0.22);                  // length of the straight final approach
-  const FAF=dest(B[0],B[1],(brgAB+180)%360,dFinalMi);         // "final approach fix" on the inbound line
-  // sample terrain along the cruise leg A→FAF and compare to the descending glide altitude
-  const N=20,line=[];for(let i=0;i<=N;i++){const t=i/N;line.push([A[0]+(FAF[0]-A[0])*t,A[1]+(FAF[1]-A[1])*t]);}
-  let elevs=[];try{elevs=await getGroundElevs(line);}catch(e){}
-  const CLEAR=500*0.3048;let maxIntr=0,intrAt=0.5;          // only curve if terrain comes within 500 ft of the glide
-  for(let i=Math.ceil(N*0.22);i<=N;i++){const t=i/N;const ga=startTrue+(lzTrue-startTrue)*t;const te=elevs[i];
-    if(te!=null){const intr=(te+CLEAR)-ga;if(intr>maxIntr){maxIntr=intr;intrAt=t;}}}   // skip launch zone (you're near the hill there)
-  let ctrl=null;
-  if(maxIntr>0){                                              // straight line would hit terrain → detour
-    const offMi=Math.min(1.1,distMi*0.22+maxIntr/350);        // how far to bow out, scaled by intrusion
-    const mid=[A[0]+(FAF[0]-A[0])*intrAt,A[1]+(FAF[1]-A[1])*intrAt];
-    const L=dest(mid[0],mid[1],(brgAB-90+360)%360,offMi),R=dest(mid[0],mid[1],(brgAB+90)%360,offMi);
-    let se=[];try{se=await getGroundElevs([L,R]);}catch(e){}
-    ctrl=((se[0]??9e9)<=(se[1]??9e9))?L:R;                    // curve toward the lower-terrain side
-  }
-  function route(t){
-    if(t<=FINAL_CF){const u=t/FINAL_CF;
-      if(ctrl){const v=1-u;return[v*v*A[0]+2*v*u*ctrl[0]+u*u*FAF[0],v*v*A[1]+2*v*u*ctrl[1]+u*u*FAF[1]];}
-      return[A[0]+(FAF[0]-A[0])*u,A[1]+(FAF[1]-A[1])*u];}
-    const u=(t-FINAL_CF)/(1-FINAL_CF);return[FAF[0]+(B[0]-FAF[0])*u,FAF[1]+(B[1]-FAF[1])*u];
-  }
-  return{route,curved:!!ctrl};
-}
-// Build the flight in RENDER space along the planned route: steady cruise descent, then a shallow
-// airplane-style final approach with a flare (descent slows toward touchdown), ending exactly on the LZ.
-function buildFlightPath2(site,startR,lzR,vScale,plan){
-  const approachR=lzR+Math.max(35*vScale,0.12*(startR-lzR));  // height to begin the final approach
-  const pts=[],N=140;
-  for(let i=0;i<=N;i++){const t=i/N;const[la,lo]=plan.route(t);let alt;
-    if(t<=FINAL_CF){const u=t/FINAL_CF;alt=startR+(approachR-startR)*u;}              // cruise glide
-    else{const u=(t-FINAL_CF)/(1-FINAL_CF);const e=1-Math.pow(1-u,1.8);alt=approachR+(lzR-approachR)*e;} // flared final
-    pts.push({lng:lo,lat:la,alt});}
-  pts[pts.length-1]={lng:site.lzLon,lat:site.lzLat,alt:lzR};  // exact touchdown
-  return pts;
-}
-let flightLayer=null, flightRAF=null, lfFlight=[], siteRatio={};
-let flightSite=null, flightPlan=null, flightRatio=null;  // stored for re-projection on camera move
-// Light weighted-average smoothing so phase junctions (glide→spiral→landing) have no sharp corners.
-function smoothPath(pts,passes){
-  for(let p=0;p<passes;p++){
-    const out=pts.map(o=>({...o}));
-    for(let i=1;i<pts.length-1;i++){
-      out[i]={lng:(pts[i-1].lng+2*pts[i].lng+pts[i+1].lng)/4,
-              lat:(pts[i-1].lat+2*pts[i].lat+pts[i+1].lat)/4,
-              alt:(pts[i-1].alt+2*pts[i].alt+pts[i+1].alt)/4};
-    }
-    pts=out;
-  }
-  return pts;
-}
-// Build the flight in RENDER space: glide out along the planned route descending at the SELECTED
-// glide ratio, then corkscrew over the LZ down to near the ground, then a short straight landing in.
-function buildFlightPath3(site,startR,lzR,vScale,plan,ratio){
-  const M2=1609.34;                                  // miles → metres
-  const NG=120, samp=[]; let prev=null,acc=0;
-  for(let i=0;i<=NG;i++){const t=i/NG;const[la,lo]=plan.route(t);if(prev)acc+=hav(prev[0],prev[1],la,lo)*M2;prev=[la,lo];samp.push({la,lo,s:acc});}
-  const spiralFloor=lzR+Math.max(28*vScale,0.05*(startR-lzR));   // altitude to finish the spiral & start landing
-  let pts=[];
-  // PHASE A — glide at the selected ratio: lose 1 unit of height per `ratio` units travelled.
-  let cut=samp.length-1, hitFloor=false;
-  for(let i=0;i<samp.length;i++){const alt=startR-(samp[i].s/ratio)*vScale;if(alt<=spiralFloor){cut=i;hitFloor=true;break;}}
-  for(let i=0;i<=cut;i++){const alt=Math.max(startR-(samp[i].s/ratio)*vScale,spiralFloor);pts.push({lng:samp[i].lo,lat:samp[i].la,alt});}
-  const last=samp[cut], entryAlt=Math.max(startR-(last.s/ratio)*vScale,spiralFloor);
-  // PHASE B — corkscrew over the LZ, funnelling inward, until close to the ground (only if there's excess height).
-  if(!hitFloor && entryAlt>spiralFloor+2*vScale){
-    const drop=entryAlt-spiralFloor, turns=Math.min(6,Math.max(2,drop/(50*vScale)));
-    const NS=Math.max(120,Math.round(turns*64)), R0=0.07, Rend=0.02;
-    const brg0=bearingTo(site.lzLat,site.lzLon,last.la,last.lo);
-    for(let i=1;i<=NS;i++){const t=i/NS;const ang=(brg0+t*turns*360)%360;const R=R0+(Rend-R0)*t;const[la,lo]=dest(site.lzLat,site.lzLon,ang,R);
-      pts.push({lng:lo,lat:la,alt:entryAlt+(spiralFloor-entryAlt)*t});}
-  }
-  // PHASE C — straight landing into the LZ with a flare (descent eases off toward touchdown).
-  const sp=pts[pts.length-1], NF=34;
-  for(let i=1;i<=NF;i++){const t=i/NF;const la=sp.lat+(site.lzLat-sp.lat)*t,lo=sp.lng+(site.lzLon-sp.lng)*t;
-    const e=1-Math.pow(1-t,2.0);pts.push({lng:lo,lat:la,alt:sp.alt+(lzR-sp.alt)*e});}
-  pts=smoothPath(pts,6);                                       // round off the phase junctions
-  const lift=5*vScale;                                         // ride a few m above ground → no z-fighting flicker
-  pts[0]={lng:site.lon,lat:site.lat,alt:startR};              // re-pin launch
-  pts[pts.length-1]={lng:site.lzLon,lat:site.lzLat,alt:lzR};  // re-pin touchdown
-  pts.forEach(p=>p.alt+=lift);
-  return pts;
-}
-function makeFlightLayer(){
-  return {
-    id:'flight3d', type:'custom', renderingMode:'3d', progress:0, count:0,
-    onAdd(map,gl){
-      this.map=map;
-      const vs=`uniform mat4 u_matrix;attribute vec3 a_pos;uniform float u_size;void main(){gl_Position=u_matrix*vec4(a_pos,1.0);gl_PointSize=u_size;}`;
-      const fs=`precision mediump float;uniform vec4 u_color;uniform float u_round;void main(){if(u_round>0.5){vec2 c=gl_PointCoord-vec2(0.5);if(dot(c,c)>0.25)discard;}gl_FragColor=u_color;}`;
-      const mk=(t,s)=>{const x=gl.createShader(t);gl.shaderSource(x,s);gl.compileShader(x);return x;};
-      this.p=gl.createProgram();gl.attachShader(this.p,mk(gl.VERTEX_SHADER,vs));gl.attachShader(this.p,mk(gl.FRAGMENT_SHADER,fs));gl.linkProgram(this.p);
-      this.aPos=gl.getAttribLocation(this.p,'a_pos');this.uMat=gl.getUniformLocation(this.p,'u_matrix');this.uCol=gl.getUniformLocation(this.p,'u_color');this.uSize=gl.getUniformLocation(this.p,'u_size');this.uRound=gl.getUniformLocation(this.p,'u_round');
-      this.buf=gl.createBuffer();
-    },
-    setData(verts){const gl=this.map.painter.context.gl;this.count=verts.length/3;gl.bindBuffer(gl.ARRAY_BUFFER,this.buf);gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(verts),gl.STATIC_DRAW);},
-    render(gl,matrix){
-      if(!this.count)return;
-      gl.useProgram(this.p);
-      // MapLibre hands us a Float64Array matrix; uniformMatrix4fv needs a Float32Array, otherwise the
-      // path jumps/glitches as the camera moves. Coerce it every frame.
-      const rawMat=matrix&&matrix.defaultProjectionData?matrix.defaultProjectionData.mainMatrix:matrix;
-      gl.uniformMatrix4fv(this.uMat,false,rawMat instanceof Float32Array?rawMat:new Float32Array(rawMat));
-      gl.bindBuffer(gl.ARRAY_BUFFER,this.buf);gl.enableVertexAttribArray(this.aPos);gl.vertexAttribPointer(this.aPos,3,gl.FLOAT,false,0,0);
-      // Draw over the terrain (no depth test — terrain's depth buffer would cull the whole path).
-      // The Float32Array matrix coercion above is what actually stops the jitter on camera moves.
-      gl.disable(gl.DEPTH_TEST);
-      gl.enable(gl.BLEND);gl.blendFunc(gl.SRC_ALPHA,gl.ONE_MINUS_SRC_ALPHA);
-      const n=Math.max(2,Math.floor(this.count*this.progress));
-      gl.uniform1f(this.uRound,0.0);                                                               // lines: no circular discard
-      gl.uniform4f(this.uCol,0.20,0.50,0.98,0.40);gl.drawArrays(gl.LINE_STRIP,0,this.count);       // faint full route
-      gl.uniform4f(this.uCol,0.10,0.40,1.0,1.0);gl.drawArrays(gl.LINE_STRIP,0,n);                   // flown so far
-      gl.uniform1f(this.uRound,1.0);                                                                // round points
-      gl.uniform1f(this.uSize,6.0);gl.uniform4f(this.uCol,0.35,0.65,1.0,0.95);gl.drawArrays(gl.POINTS,0,n);
-      gl.uniform1f(this.uSize,15.0);gl.uniform4f(this.uCol,1.0,0.80,0.12,1.0);gl.drawArrays(gl.POINTS,Math.max(0,n-1),1); // glider head
-    }
-  };
-}
-function reprojectFlight(){
-  if(!flightLayer||!flightSite||!flightPlan||!useMapLibre||!mlMap)return;
-  if(flightLayer.progress<1)return;  // don't interrupt animation
-  const site=flightSite;
-  let startR=mlMap.queryTerrainElevation([site.lon,site.lat]);
-  let lzR=mlMap.queryTerrainElevation([site.lzLon,site.lzLat]);
-  if(startR==null||lzR==null)return;
-  const trueRelief=Math.max(30,(site.alt-(site.lzAlt||4500))*M);
-  let vScale=(startR-lzR)/trueRelief;if(!isFinite(vScale)||vScale<=0)vScale=1;
-  const path=buildFlightPath3(site,startR,lzR,vScale,flightPlan,flightRatio);
-  const verts=[];path.forEach(p=>{const mc=maplibregl.MercatorCoordinate.fromLngLat([p.lng,p.lat],p.alt);verts.push(mc.x,mc.y,mc.z);});
-  flightLayer.setData(verts);
-  mlMap.triggerRepaint();
-}
-function clearFlight(){
-  if(flightRAF){cancelAnimationFrame(flightRAF);flightRAF=null;}
-  flightSite=null;flightPlan=null;flightRatio=null;
-  if(useMapLibre&&mlMap){try{if(mlMap.getLayer('flight3d'))mlMap.removeLayer('flight3d');}catch(e){}flightLayer=null;}
-  if(lfMap){lfFlight.forEach(l=>{try{lfMap.removeLayer(l);}catch(e){}});lfFlight=[];}
-}
-async function simulateFlight(sid){
-  const site=LAUNCHES.find(s=>s.id===sid);if(!site||site.lzLat==null)return;
-  clearFlight();
-  stashSidebar();          // mobile: hide the panel so the flight is visible on the map
-  const btn=document.getElementById('flybtn-'+sid);if(btn){btn.disabled=true;btn.textContent='🪂 Flying…';}
-  const plan=await planRoute(site,site.alt*M,(site.lzAlt||4500)*M);   // terrain-aware ground track (curves around peaks)
-  const ratio=siteRatio[sid]||BASE_RATIO;                             // honour the glide-ratio slider
-  if(useMapLibre&&mlMap){
-    // frame the run: look from the LZ side back toward the launch so the glider
-    // flies toward the camera (visible) instead of away from it.
-    const brg=(bearingTo(site.lat,site.lon,site.lzLat,site.lzLon)+180+62)%360;   // off-axis: view the run more from the side, not head-on
-    // Fit the WHOLE launch→LZ path to the viewport instead of a fixed zoom, so long flights
-    // aren't cropped on small (phone) screens. cameraForBounds bakes the padding into the
-    // returned center/zoom; we pull back ~0.5 zoom for headroom once the view is pitched.
-    const isMob=window.innerWidth<=768;
-    const fpad=isMob?{top:80,bottom:110,left:36,right:36}:{top:70,bottom:70,left:60,right:330};
-    const fbnds=new maplibregl.LngLatBounds([site.lon,site.lat],[site.lon,site.lat]).extend([site.lzLon,site.lzLat]);
-    let fcam=null;try{fcam=mlMap.cameraForBounds(fbnds,{bearing:brg,padding:fpad,maxZoom:14.6});}catch(e){}
-    const fcenter=(fcam&&fcam.center)?fcam.center:[(site.lon+site.lzLon)/2,(site.lat+site.lzLat)/2];
-    const fzoom=(fcam&&isFinite(fcam.zoom))?Math.max(9.5,fcam.zoom-0.5):14.4;
-    mlMap.easeTo({center:fcenter,zoom:fzoom,pitch:76,bearing:brg,duration:900});
-    // wait for DEM tiles so queryTerrainElevation (which matches what's drawn) is valid
-    await new Promise(r=>{let done=false;const fin=()=>{if(!done){done=true;r();}};mlMap.once('idle',fin);setTimeout(fin,2600);});
-    // sample terrain; retry briefly if tiles aren't ready so the endpoints actually sit on the ground
-    let startR=null,lzR=null;
-    for(let tries=0;tries<8;tries++){
-      startR=mlMap.queryTerrainElevation([site.lon,site.lat]);
-      lzR=mlMap.queryTerrainElevation([site.lzLon,site.lzLat]);
-      if(startR!=null&&lzR!=null)break;
-      await new Promise(r=>setTimeout(r,180));
-    }
-    if(startR==null||lzR==null){const ex=(exagOn?1.5:1);startR=site.alt*M*ex;lzR=(site.lzAlt||4500)*M*ex;} // terrain not ready: match exaggeration
-    const trueRelief=Math.max(30,(site.alt-(site.lzAlt||4500))*M);
-    let vScale=(startR-lzR)/trueRelief;if(!isFinite(vScale)||vScale<=0)vScale=1;
-    const path=buildFlightPath3(site,startR,lzR,vScale,plan,ratio);
-    const verts=[];path.forEach(p=>{const mc=maplibregl.MercatorCoordinate.fromLngLat([p.lng,p.lat],p.alt);verts.push(mc.x,mc.y,mc.z);});
-    flightSite=site;flightPlan=plan;flightRatio=ratio;
-    flightLayer=makeFlightLayer();
-    mlMap.addLayer(flightLayer);
-    flightLayer.setData(verts);
-    flightLayer.progress=0;
-    const t0=performance.now(), DUR=8000;
-    const step=now=>{const e=Math.min(1,(now-t0)/DUR);flightLayer.progress=e;mlMap.triggerRepaint();if(e<1)flightRAF=requestAnimationFrame(step);else if(btn){btn.disabled=false;btn.textContent='🪂 Replay flight → LZ';}};
-    flightRAF=requestAnimationFrame(step);
-  } else if(lfMap){
-    // 2D fallback: animated ground track + glider dot (altitude irrelevant in 2D)
-    const path=buildFlightPath3(site,site.alt*M,(site.lzAlt||4500)*M,1,plan,ratio);
-    const latlngs=path.map(p=>[p.lat,p.lng]);
-    const full=L.polyline(latlngs,{color:'#3b82f6',weight:2,opacity:0.4}).addTo(lfMap);
-    const flown=L.polyline([],{color:'#2563eb',weight:3}).addTo(lfMap);
-    const dot=L.circleMarker(latlngs[0],{radius:6,color:'#d97706',fillColor:'#fbbf24',fillOpacity:1,weight:2}).addTo(lfMap);
-    lfFlight.push(full,flown,dot);
-    try{const lb=L.latLngBounds(latlngs);if(lb.isValid())lfMap.fitBounds(lb,{padding:[30,30],maxZoom:15});}catch(e){}
-    const t0=performance.now(),DUR=7000;
-    const step=now=>{const e=Math.min(1,(now-t0)/DUR);const n=Math.max(1,Math.floor(latlngs.length*e));flown.setLatLngs(latlngs.slice(0,n));dot.setLatLng(latlngs[n-1]);if(e<1)flightRAF=requestAnimationFrame(step);else if(btn){btn.disabled=false;btn.textContent='🪂 Replay flight → LZ';}};
-    flightRAF=requestAnimationFrame(step);
-  }
-}
-function clearAll(){clearGlide();clearFlight();}
 
 // ── Weather ───────────────────────────────────────────────────────────────────
 async function fetchHRRR(lat,lon){
@@ -1363,49 +922,6 @@ function directionsURL(lat,lon){
   return apple?`https://maps.apple.com/?daddr=${lat},${lon}&dirflg=d`:`https://www.google.com/maps/dir/?api=1&destination=${lat},${lon}`;
 }
 let exagOn=true;
-let glideOn=false;                                 // Best-glide feature: off until toggled on
-let windGlideOn=true;                              // Live-wind glide model: on by default (realistic, asymmetric)
-// Toggle the wind model on/off and redraw the current launch's footprint + mileage in place.
-function toggleWindGlide(){
-  windGlideOn=!windGlideOn;
-  const chk=document.getElementById('pp-wind-chk');if(chk)chk.checked=windGlideOn;
-  if(!currentLaunchId)return;
-  const s=LAUNCHES.find(x=>x.id===currentLaunchId);if(!s)return;
-  const w=siteWx[s.id], r=siteRatio[s.id]||BASE_RATIO;
-  drawSector(s,w,r);                                          // redraw footprint with/without wind
-  const rng=document.getElementById('rng-'+s.id);
-  if(rng){const mi=glideReach(s,r);rng.textContent=`${mi.toFixed(1)} mi / ${(mi*1.609).toFixed(1)} km`;}
-}
-function toggleGlide(){
-  glideOn=!glideOn;
-  const b=document.getElementById('glidebtn');
-  if(b){b.classList.toggle('active',glideOn);b.textContent=`◹ Best glide: ${glideOn?'on':'off'}`;}
-  const chk=document.getElementById('pp-glide-chk');if(chk)chk.checked=glideOn;   // keep popup toggle in sync
-  if(!glideOn){
-    clearGlide();
-    const gb=document.getElementById('glide-box');if(gb)gb.innerHTML=glideOffHTML();
-  }else if(currentLaunchId){
-    const s=LAUNCHES.find(x=>x.id===currentLaunchId);if(s)runGlide(s);
-    stashSidebar();          // mobile: reveal the footprint on the map
-  }
-}
-// Compute + draw the glide footprint for a launch (used on click and on toggle-on).
-async function runGlide(site){
-  const w=siteWx[site.id];
-  const gb=document.getElementById('glide-box');if(gb)gb.innerHTML=glideHTML(site,w,BASE_RATIO,terrainCache[site.id]?true:false);
-  drawSector(site,w,BASE_RATIO);             // immediate (cached footprint, or coarse arc)
-  await sampleTerrain(site);                 // batched elevation (cached after first time)
-  // Ad-hoc "fly from here" points have no fixed facing — derive the real downhill from terrain
-  // so the reachable fan opens the way the slope actually falls away (not a default south).
-  if(site.adhoc&&!site._dh){
-    site.facing=adhocDownhill(site,terrainCache[site.id]);site._dh=true;
-    // popup subtitle was built with the placeholder facing — refresh it with the real downhill
-    if(currentLaunchId===site.id){const ps=document.querySelector('.pp .pps');if(ps)ps.textContent=`${site.sub} · ${site.alt.toLocaleString()} ft · ${site.rating} · ${d2c(site.facing)}-facing`;}
-  }
-  if(currentLaunchId!==site.id||!glideOn)return;
-  drawSector(site,w,BASE_RATIO);             // redraw with real terrain footprint
-  const gb2=document.getElementById('glide-box');if(gb2)gb2.innerHTML=glideHTML(site,w,BASE_RATIO,true);
-}
 const DARK_KEY='updraft_dark_v1';
 function applyDark(on){document.body.classList.toggle('dark',on);const b=document.getElementById('dark-btn');if(b){b.textContent=on?'☀️ Light mode':'🌙 Dark mode';b.classList.toggle('active',on);}}
 function toggleDark(){const on=!document.body.classList.contains('dark');applyDark(on);try{localStorage.setItem(DARK_KEY,on?'1':'0');}catch(e){}}
@@ -1448,27 +964,23 @@ function clearAdhoc(){
   if(!adhocId)return;
   const mk=launchMarkerMap[adhocId];
   if(mk){try{useMapLibre?mk.remove():lfMap.removeLayer(mk);}catch(e){}}
-  delete launchMarkerMap[adhocId];delete launchElMap[adhocId];delete siteWx[adhocId];delete terrainCache[adhocId];delete siteRatio[adhocId];
+  delete launchMarkerMap[adhocId];delete launchElMap[adhocId];delete siteWx[adhocId];
   const i=LAUNCHES.findIndex(s=>s.id===adhocId);if(i>=0)LAUNCHES.splice(i,1);
   adhocId=null;
 }
-// Treat the tapped point as a takeoff: drop a pin, fetch elevation+weather, force best-glide
-// on, then open the normal takeoff menu (footprint + in-range LZ highlight) for it.
+// Treat the tapped point as a takeoff: drop a pin, fetch elevation+weather, open the takeoff menu.
 async function flyFromHere(lat,lon){
   closeFlyPrompt();
-  clearGlide();clearZones&&clearZones();clearAdhoc();
+  clearZones&&clearZones();clearAdhoc();
   let alt=6000;
   try{const r=await fetch(`https://api.open-meteo.com/v1/elevation?latitude=${lat.toFixed(5)}&longitude=${lon.toFixed(5)}`);const j=await r.json();if(j&&j.elevation&&j.elevation[0]!=null)alt=Math.round(j.elevation[0]*3.28084);}catch(e){}
-  const site={id:'flyhere_'+Date.now(),name:'Fly from here',sub:'Tapped point',lat,lon,alt,lzAlt:4500,rating:'Ad-hoc',facing:180,lzLat:null,lzLon:null,desc:'Ad-hoc takeoff from a tapped point. Best-glide reach is terrain-following; downhill direction is read from the surrounding slope. Highlighted LZs are within glide range.',adhoc:true};
+  const site={id:'flyhere_'+Date.now(),name:'Fly from here',sub:'Tapped point',lat,lon,alt,lzAlt:4500,rating:'Ad-hoc',facing:180,lzLat:null,lzLon:null,desc:'Ad-hoc takeoff from a tapped point.',adhoc:true};
   adhocId=site.id;
   LAUNCHES.push(site);
   createLaunchMarker(site);
-  glideOn=true;                                          // best-glide is the whole point here
-  const gb=document.getElementById('glidebtn');if(gb){gb.classList.add('active');gb.textContent='◹ Best glide: on';}
-  onLaunchClick(site);                                   // opens the standard takeoff menu + runs glide
-  // Weather arrives async; once it does, recolour the pin and (if still selected) redraw the
-  // footprint so the live-wind glide model uses real wind.
-  fetchHRRR(site.lat,site.lon).then(w=>{if(!w)return;siteWx[site.id]={...w,status:flyS(w.wind,w.gusts,w.cloud,w.temp)};recolorMarkers();if(currentLaunchId===site.id){if(glideOn)runGlide(site);}});
+  onLaunchClick(site);                                   // opens the standard takeoff menu
+  // Weather arrives async; once it does, recolour the pin.
+  fetchHRRR(site.lat,site.lon).then(w=>{if(!w)return;siteWx[site.id]={...w,status:flyS(w.wind,w.gusts,w.cloud,w.temp)};recolorMarkers();});
 }
 
 // Press-and-hold anywhere on the map (touch) to drop an ad-hoc takeoff right there and run the
@@ -1507,24 +1019,22 @@ function setupLongPress(){
 }
 
 // ── Click handler ─────────────────────────────────────────────────────────────
-async function onLaunchClick(site,e){
+function onLaunchClick(site,e){
   stopEvt(e);
-  clearGlide();clearZones();currentEditLZ=null;
+  clearZones();currentEditLZ=null;
   currentLaunchId=site.id;
   const w=siteWx[site.id];
   setForecastSite(site.lat,site.lon,site.name);   // forecast bar follows the clicked site
-  showPopup(site.lat,site.lon,launchPop(site,w,terrainCache[site.id]?true:false,BASE_RATIO));
+  showPopup(site.lat,site.lon,launchPop(site,w));
   wireLaunchEditor(site);
   mountThumb(site,site.facing);
-  if(glideOn)await runGlide(site);           // glide footprint only when the feature is on
 }
 function onLZClick(lz,e){
   stopEvt(e);
-  clearFlight();          // stop any running flight sim when inspecting a different LZ
   currentLaunchId=null;currentEditLZ=lz.id;
-  const w=siteWx[lz.id],hl=activeLzHL.includes(lz.id);
+  const w=siteWx[lz.id];
   setForecastSite(lz.lat,lz.lon,lz.name);    // forecast bar follows the clicked LZ
-  showPopup(lz.lat,lz.lon,lzPop(lz,w,hl));
+  showPopup(lz.lat,lz.lon,lzPop(lz,w));
   mountThumb(lz,null);
   wireLZEditor(lz);
   showLZBoundary(lz);          // draw just this LZ's boundary
@@ -1568,7 +1078,7 @@ function closeSidebar(){
   document.getElementById('sidebar').classList.remove('open');
   document.body.classList.remove('popup-open');
   const r=document.getElementById('sb-reopen');if(r)r.style.display='none';
-  destroyMini();openPopup=null;clearFlight();currentEditLZ=null;currentLaunchId=null;clearZones();lockAllPins();
+  destroyMini();openPopup=null;currentEditLZ=null;currentLaunchId=null;clearZones();lockAllPins();
   setForecastSite(40.52,-111.87,'Salt Lake City');   // revert forecast bar to the regional default
   if(useMapLibre&&mlMap){try{mlMap.easeTo({padding:{right:0,left:0,top:0,bottom:0},duration:400});}catch(e){}}
 }
@@ -1608,7 +1118,7 @@ function initMapLibre(){
         // Blue-dot geolocation (the native button is hidden via CSS; #geo-btn drives it).
         geoCtrl=new maplibregl.GeolocateControl({positionOptions:{enableHighAccuracy:true},trackUserLocation:false,showUserHeading:false,fitBoundsOptions:{maxZoom:12}});
         m.addControl(geoCtrl,'bottom-right');
-        m.on('rotate',updateCompass);m.on('pitchend',updateCompass);m.on('idle',reprojectFlight);
+        m.on('rotate',updateCompass);m.on('pitchend',updateCompass);
         m.on('move',cullGhostMarkers);m.on('idle',cullGhostMarkers);
         m.on('click',e=>{if(suppressMapClick){suppressMapClick=false;return;}if(handleEditClick(e.lngLat.lng,e.lngLat.lat))return;showFlyPrompt(e.lngLat.lat,e.lngLat.lng);});
         m.on('dblclick',e=>{if(drawingFor){e.preventDefault();finishDraw();}});
@@ -1834,7 +1344,7 @@ function wireLaunchEditor(site){
   document.getElementById('led-alt').oninput=e=>{const v=parseInt(e.target.value);if(!isNaN(v))site.alt=v;persist();};
   document.getElementById('led-desc').oninput=e=>{site.desc=e.target.value;persist();};
   document.getElementById('led-move').onclick=()=>toggleMoveLaunch(site.id);
-  document.getElementById('led-save').onclick=e=>{saveLaunchPos();saveCustomLaunches();flashSaved(e.target);if(glideOn&&currentLaunchId===site.id)runGlide(site);};
+  document.getElementById('led-save').onclick=e=>{saveLaunchPos();saveCustomLaunches();flashSaved(e.target);};
 }
 // Pins are locked by default; this enables dragging for one LZ until you lock it again.
 function toggleMovePin(lz){

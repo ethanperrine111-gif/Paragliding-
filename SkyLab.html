@@ -116,6 +116,10 @@ body.probe-off #ctrl-panel{top:8px;}
 .pplz{background:#eff6ff;border:1px solid #bfdbfe;border-radius:7px;padding:7px 9px;margin-top:5px;font-size:11px;color:#1e40af;}
 .ppreach{background:#fefce8;border:1px solid #fde047;border-radius:7px;padding:5px 9px;font-size:11px;color:#713f12;margin-bottom:6px;font-weight:600;}
 .ppnote{font-size:10px;color:#aaa;margin-top:5px;line-height:1.4;}
+.pp-fc-title{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:#64748b;margin:8px 0 2px;}
+.pp-fc-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:thin;border-radius:8px;border:1px solid #e2e8f0;background:#fff;--fcw:38px;--fcl:50px;margin-bottom:7px;}
+.pp-fc-wrap::-webkit-scrollbar{height:5px;}
+.pp-fc-wrap::-webkit-scrollbar-thumb{background:rgba(0,0,0,.18);border-radius:3px;}
 .ppbio{margin-top:10px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:9px 11px;font-size:12.5px;color:#334155;line-height:1.55;}
 .ppbio-h{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.4px;color:#64748b;margin-bottom:5px;display:flex;align-items:center;gap:5px;}
 .ppbio p{margin:0 0 6px;}
@@ -277,6 +281,8 @@ body.dark .lzedit{background:#111827;border-color:#334155;}
 body.dark .lzedit>summary{background:#1e293b;color:#93c5fd;}
 body.dark .pplz{background:#172033;border-color:#1e3a5f;color:#bfdbfe;}
 body.dark .ppgl,body.dark .ppgl-loading{background:#14241a;border-color:#1f3a28;color:#bbf7d0;}
+body.dark .pp-fc-wrap{background:#0f172a;border-color:#1e293b;}
+body.dark .pp-fc-title{color:#94a3b8;}
 body.dark .ppreach{background:#2a2410;border-color:#5a4a14;color:#fde68a;}
 body.dark .ppbio{background:#111827;border-color:#1e293b;color:#cbd5e1;}
 body.dark .ppbio-h{color:#94a3b8;}
@@ -555,12 +561,12 @@ function launchPop(site,w,done,ratio){
   const dir=`<a class="dirbtn" href="${directionsURL(site.lat,site.lon)}" target="_blank" rel="noopener">🧭 Directions to trailhead</a>`;
   const glideToggle=`<label class="pptgl"><span>◹ Best glide</span><span class="switch"><input type="checkbox" id="pp-glide-chk" ${glideOn?'checked':''} onchange="toggleGlide()"/><span class="slider"></span></span></label>`;
   const bio=site.desc?`<div class="ppbio"><div class="ppbio-h">📋 About this launch</div><p>${site.desc}</p>${site.hazards?`<div class="ppbio-hz">${site.hazards.map(h=>`<span class="ppbio-tag">⚠ ${h}</span>`).join('')}</div>`:''}</div>`:'';
-  return`<div class="pp"><div class="pp-sat" id="ppsat"></div><div class="ppn">▲ ${site.name}</div><div class="pps">${site.sub} · ${site.alt.toLocaleString()} ft · ${site.rating} · ${d2c(site.facing)}-facing</div>${bdg(s)}${wxG(w)}${glideToggle}<div id="glide-box">${glideHTML(site,w,ratio||BASE_RATIO,done)}</div>${flyBtn}${dir}${bio}${launchEditorHTML(site)}</div>`;
+  return`<div class="pp"><div class="pp-sat" id="ppsat"></div><div class="ppn">▲ ${site.name}</div><div class="pps">${site.sub} · ${site.alt.toLocaleString()} ft · ${site.rating} · ${d2c(site.facing)}-facing</div>${bdg(s)}${wxG(w)}<div class="pp-fc-title">48-Hour Forecast</div><div class="pp-fc-wrap"><div id="pp-fc-track" class="fc-track"><div class="nb-load">Loading…</div></div></div>${glideToggle}<div id="glide-box">${glideHTML(site,w,ratio||BASE_RATIO,done)}</div>${flyBtn}${dir}${bio}${launchEditorHTML(site)}</div>`;
 }
 function lzPop(site,w,hl){
   const lzBio=site.lzBio||site.desc||'';
   const bioHTML=lzBio?`<div class="ppbio"><div class="ppbio-h">📋 About this LZ</div><p>${lzBio}</p>${site.hazards?`<div class="ppbio-hz">${site.hazards.map(h=>`<span class="ppbio-tag">⚠ ${h}</span>`).join('')}</div>`:''}</div>`:'';
-  return`<div class="pp"><div class="pp-sat" id="ppsat"></div><div class="ppn">◼ ${site.name}</div><div class="pps">${site.sub} · ${site.alt.toLocaleString()} ft · Landing Zone</div>${hl?`<div class="ppreach">⭐ Within glide range</div>`:''}${wxG(w)}${bioHTML}<a class="dirbtn" href="${directionsURL(site.lat,site.lon)}" target="_blank" rel="noopener">🧭 Directions to LZ</a>${lzEditorHTML(site)}</div>`;
+  return`<div class="pp"><div class="pp-sat" id="ppsat"></div><div class="ppn">◼ ${site.name}</div><div class="pps">${site.sub} · ${site.alt.toLocaleString()} ft · Landing Zone</div>${hl?`<div class="ppreach">⭐ Within glide range</div>`:''}${wxG(w)}<div class="pp-fc-title">48-Hour Forecast</div><div class="pp-fc-wrap"><div id="pp-fc-track" class="fc-track"><div class="nb-load">Loading…</div></div></div>${bioHTML}<a class="dirbtn" href="${directionsURL(site.lat,site.lon)}" target="_blank" rel="noopener">🧭 Directions to LZ</a>${lzEditorHTML(site)}</div>`;
 }
 function onSlide(evt,sid){
   const r=parseFloat(evt.target.value),el=document.getElementById('grv-'+sid);
@@ -1230,6 +1236,49 @@ function renderForecast(series){
       const lblW=parseInt(style.getPropertyValue('--fcl'))||62;
       fc.scrollLeft=lblW+nowIdx*colW-colW;
     }
+  }
+  // Also render the mini forecast inside the popup sidebar if it's open.
+  const ppTrack=document.getElementById('pp-fc-track');
+  if(ppTrack){
+    const ppS=series.slice(0,48);
+    let ppNowIdx=-1;
+    ppS.forEach((e,i)=>{if(ppNowIdx<0&&new Date(e.t).getTime()>=now-30*60*1000)ppNowIdx=i;});
+    const ppGroups=[];
+    ppS.forEach(e=>{const d=new Date(e.t),key=d.toDateString();const last=ppGroups[ppGroups.length-1];
+      if(last&&last.key===key)last.count++;else ppGroups.push({key,count:1,label:`${days[d.getDay()]} ${d.getDate()}`});});
+    const pcell=(i,inner,style)=>`<div class="fc-cell${i===ppNowIdx?' now':''}"${style?` style="${style}"`:''}>${inner}</div>`;
+    let ppDay='<div class="fc-lbl"></div>',ppAlt=false;
+    ppGroups.forEach(g=>{ppDay+=`<div class="fc-day${ppAlt?' alt':''}" style="width:calc(var(--fcw) * ${g.count})">${g.label}</div>`;ppAlt=!ppAlt;});
+    let ppHr='<div class="fc-lbl">Hour</div>',ppSky='<div class="fc-lbl">Sky</div>',
+        ppTemp='<div class="fc-lbl">Temp</div>',ppRain='<div class="fc-lbl">Rain%</div>',
+        ppWind='<div class="fc-lbl">Wind</div>',ppGust='<div class="fc-lbl">Gusts</div>',
+        ppDir='<div class="fc-lbl">Dir</div>',ppFly='<div class="fc-lbl">Fly</div>';
+    ppS.forEach((e,i)=>{
+      const d=new Date(e.t),hr=d.getHours();
+      const ap=hr===0?'12a':hr<12?hr+'a':hr===12?'12p':(hr-12)+'p';
+      const fs=flyS(e.wind,e.gust,e.cloud,e.temp,hr);
+      const dc={flyable:'#22c55e',caution:'#facc15',no:'#ef4444'}[fs];
+      ppHr+=pcell(i,i===ppNowIdx?'Now':ap);
+      ppSky+=pcell(i,skyIcon(e.cloud,e.pop));
+      ppTemp+=pcell(i,`${e.temp}°`,`color:${tempColor(e.temp)}`);
+      ppRain+=pcell(i,e.pop>=10?e.pop:'');
+      ppWind+=pcell(i,e.wind,`background:${windColor(e.wind)}`);
+      ppGust+=pcell(i,e.gust,`background:${windColor(e.gust)}`);
+      ppDir+=pcell(i,dirArrowCell(e.dir));
+      ppFly+=pcell(i,'',`background:${dc}`);
+    });
+    ppTrack.innerHTML=
+      `<div class="fc-row fc-r-day">${ppDay}</div>`+
+      `<div class="fc-row fc-r-hr">${ppHr}</div>`+
+      `<div class="fc-row fc-r-sky">${ppSky}</div>`+
+      `<div class="fc-row fc-r-temp">${ppTemp}</div>`+
+      `<div class="fc-row fc-r-rain">${ppRain}</div>`+
+      `<div class="fc-row fc-r-wind">${ppWind}</div>`+
+      `<div class="fc-row fc-r-gust">${ppGust}</div>`+
+      `<div class="fc-row fc-r-dir">${ppDir}</div>`+
+      `<div class="fc-row fc-r-fly">${ppFly}</div>`;
+    const ppWrap=ppTrack.closest('.pp-fc-wrap');
+    if(ppWrap&&ppNowIdx>0){ppWrap.scrollLeft=Math.max(0,50+ppNowIdx*38-38);}
   }
 }
 
